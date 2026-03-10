@@ -1,0 +1,150 @@
+# frozen_string_literal: true
+
+require "fileutils"
+require "open3"
+
+module Aircon
+  module Commands
+    class Up
+      STAGING_DIR = ".aircon"
+
+      def initialize(config:)
+        @config = config
+      end
+
+      def call(branch, port: "3001")
+        container = Docker.find_container(project: branch, service: @config.service)
+
+        if container
+          attach_existing(container, branch)
+        else
+          start_new(branch, port)
+        end
+      end
+
+      private
+
+      def attach_existing(container, branch)
+        puts "Attaching to existing container for '#{branch}'..."
+        system("docker", "exec", "-it", container, "bash")
+        cleanup_if_last(container, branch)
+      end
+
+      def start_new(branch, port)
+        if @config.gh_token.nil? || @config.gh_token.to_s.empty?
+          warn "Warning: gh_token not configured. GitHub CLI (gh) will not be authenticated."
+          warn "  Set gh_token in .aircon.yml if you want to use 'gh' commands."
+        end
+
+        env = {
+          "HOST_PORT" => port.to_s,
+          "GH_TOKEN" => @config.gh_token.to_s
+        }
+
+        system(env, "docker", "compose",
+               "-f", @config.compose_file,
+               "-p", branch,
+               "up", "-d", "--build")
+
+        container = Docker.find_container(project: branch, service: @config.service)
+        abort "Error: Could not find container after starting services." unless container
+
+        inject_claude_settings(container)
+        setup_container(container, branch)
+        wait_for_setup(container)
+
+        system("docker", "exec", "-it", container, "bash")
+        cleanup_if_last(container, branch)
+      end
+
+      def inject_claude_settings(container)
+        staging = File.join(STAGING_DIR, "host_claude_settings")
+        FileUtils.rm_rf(STAGING_DIR)
+        FileUtils.mkdir_p(staging)
+
+        claude_config = File.expand_path(@config.claude_config_path)
+        claude_dir = File.expand_path(@config.claude_dir_path)
+
+        FileUtils.cp(claude_config, File.join(staging, ".claude.json")) if File.exist?(claude_config)
+
+        if File.directory?(claude_dir)
+          FileUtils.cp_r(claude_dir, File.join(staging, ".claude"))
+        else
+          FileUtils.mkdir_p(File.join(staging, ".claude"))
+        end
+
+        write_credentials(File.join(staging, ".claude", ".credentials.json"))
+
+        home = @config.container_home
+        user = @config.container_user
+        system("docker", "cp", "#{File.join(staging, '.claude')}/.", "#{container}:#{home}/.claude")
+        system("docker", "cp", File.join(staging, ".claude.json"), "#{container}:#{home}/.claude.json")
+        system("docker", "exec", "-u", "root", container,
+               "bash", "-c", "chmod -R u+rwX #{home}/.claude #{home}/.claude.json && " \
+                             "chown -R #{user}:#{user} #{home}/.claude #{home}/.claude.json")
+      ensure
+        FileUtils.rm_rf(STAGING_DIR)
+      end
+
+      def write_credentials(dest)
+        case @config.credentials_source
+        when "keychain"
+          out, status = Open3.capture2(
+            "security", "find-generic-password",
+            "-a", ENV.fetch("USER", "unknown"),
+            "-w", "-s", "Claude Code-credentials"
+          )
+          if status.success?
+            File.write(dest, out)
+          else
+            warn "Warning: Could not read credentials from keychain."
+          end
+        when "file"
+          src = File.expand_path("~/.claude/.credentials.json")
+          if File.exist?(src)
+            FileUtils.cp(src, dest)
+          else
+            warn "Warning: Credentials file not found at #{src}"
+          end
+        end
+      end
+
+      def setup_container(container, branch)
+        home = @config.container_home
+
+        # Install Claude Code if not already present, and ensure it's on PATH for all shells
+        system("docker", "exec", container, "bash", "-c",
+               "command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash")
+        system("docker", "exec", "-u", "root", container, "bash", "-c",
+               "grep -qF '#{home}/.local/bin' /etc/bash.bashrc 2>/dev/null || " \
+               "echo 'export PATH=\"#{home}/.local/bin:$PATH\"' >> /etc/bash.bashrc")
+
+        # Configure git and create branch
+        system("docker", "exec", container, "git", "config", "--global", "user.email", @config.git_email)
+        system("docker", "exec", container, "git", "config", "--global", "user.name", @config.git_name)
+        system("docker", "exec", container, "git", "checkout", "-b", branch)
+      end
+
+      def wait_for_setup(container)
+        puts "Waiting for container setup to complete..."
+        loop do
+          _, status = Open3.capture2("docker", "exec", container, "test", "-f", "/tmp/setup-done")
+          break if status.success?
+
+          sleep 1
+        end
+      end
+
+      def cleanup_if_last(container, branch)
+        out, = Open3.capture2("docker", "exec", container, "pgrep", "-x", "bash")
+        remaining = out.strip.lines.size
+
+        return unless remaining == 0
+
+        puts "Last session ended. Cleaning up..."
+        system("docker", "compose", "-p", branch, "down", "-v", "--remove-orphans")
+        system("docker", "image", "prune", "-f")
+      end
+    end
+  end
+end
