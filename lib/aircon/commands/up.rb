@@ -38,7 +38,8 @@ module Aircon
 
         env = {
           "HOST_PORT" => port.to_s,
-          "GH_TOKEN" => @config.gh_token.to_s
+          "GH_TOKEN" => @config.gh_token.to_s,
+          "GITHUB_PERSONAL_ACCESS_TOKEN" => @config.gh_token.to_s
         }
 
         system(env, "docker", "compose",
