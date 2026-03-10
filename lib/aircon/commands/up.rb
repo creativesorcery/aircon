@@ -77,6 +77,7 @@ module Aircon
         write_credentials(File.join(staging, ".claude", ".credentials.json"))
 
         home = @config.container_home
+        rewrite_paths(staging, home)
         user = @config.container_user
         system("docker", "cp", "#{File.join(staging, '.claude')}/.", "#{container}:#{home}/.claude")
         system("docker", "cp", File.join(staging, ".claude.json"), "#{container}:#{home}/.claude.json")
@@ -85,6 +86,21 @@ module Aircon
                              "chown -R #{user}:#{user} #{home}/.claude #{home}/.claude.json")
       ensure
         FileUtils.rm_rf(STAGING_DIR)
+      end
+
+      def rewrite_paths(staging, container_home)
+        host_home = File.expand_path("~")
+
+        Dir.glob(File.join(staging, "**", "*"), File::FNM_DOTMATCH).each do |path|
+          next unless File.file?(path)
+          next unless File.readable?(path)
+
+          content = File.binread(path)
+          next unless content.valid_encoding?
+          next unless content.include?(host_home)
+
+          File.write(path, content.gsub(host_home, container_home))
+        end
       end
 
       def write_credentials(dest)
@@ -119,6 +135,15 @@ module Aircon
         system("docker", "exec", "-u", "root", container, "bash", "-c",
                "grep -qF '#{home}/.local/bin' /etc/bash.bashrc 2>/dev/null || " \
                "echo 'export PATH=\"#{home}/.local/bin:$PATH\"' >> /etc/bash.bashrc")
+
+        if @config.gh_token && !@config.gh_token.to_s.empty?
+          system("docker", "exec", "-u", "root", container, "bash", "-c",
+                 "grep -qF 'export GH_TOKEN=' /etc/bash.bashrc 2>/dev/null || " \
+                 "echo 'export GH_TOKEN=\"#{@config.gh_token}\"' >> /etc/bash.bashrc")
+          system("docker", "exec", "-u", "root", container, "bash", "-c",
+                 "grep -qF 'export GITHUB_PERSONAL_ACCESS_TOKEN=' /etc/bash.bashrc 2>/dev/null || " \
+                 "echo 'export GITHUB_PERSONAL_ACCESS_TOKEN=\"#{@config.gh_token}\"' >> /etc/bash.bashrc")
+        end
 
         # Configure git and create branch
         system("docker", "exec", container, "git", "config", "--global", "user.email", @config.git_email)
