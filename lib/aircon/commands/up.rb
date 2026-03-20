@@ -52,7 +52,7 @@ module Aircon
 
         inject_claude_settings(container)
         setup_container(container, branch)
-        wait_for_setup(container)
+        # wait_for_setup(container)
 
         system("docker", "exec", "-it", container, "bash")
         cleanup_if_last(container, branch)
@@ -149,17 +149,20 @@ module Aircon
         system("docker", "exec", container, "git", "config", "--global", "user.email", @config.git_email)
         system("docker", "exec", container, "git", "config", "--global", "user.name", @config.git_name)
         system("docker", "exec", container, "git", "checkout", "-b", branch)
+
+        # If you have the official anthropic marketplace plugin installed, it will always make a call to the anthropic github repo on claude startup. It uses SSH, but it should be https for universal compatibility since its a public repository.
+        system("docker", "exec", container, "git", "config", "--global", "url.\"https://github.com/anthropics/\".insteadOf", "ssh://git@github.com/anthropics/")
       end
 
-      def wait_for_setup(container)
-        puts "Waiting for container setup to complete..."
-        loop do
-          _, status = Open3.capture2("docker", "exec", container, "test", "-f", "/tmp/setup-done")
-          break if status.success?
+      # def wait_for_setup(container)
+      #   puts "Waiting for container setup to complete..."
+      #   loop do
+      #     _, status = Open3.capture2("docker", "exec", container, "test", "-f", "/tmp/setup-done")
+      #     break if status.success?
 
-          sleep 1
-        end
-      end
+      #     sleep 1
+      #   end
+      # end
 
       def cleanup_if_last(container, branch)
         out, = Open3.capture2("docker", "exec", container, "pgrep", "-x", "bash")
