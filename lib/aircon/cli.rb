@@ -16,6 +16,12 @@ module Aircon
       Commands::Up.new(config: config).call(branch, port: port, detach: options[:detach])
     end
 
+    desc "down BRANCH", "Tear down the container and volumes for the given branch"
+    def down(branch)
+      config = Configuration.new
+      Commands::Down.new(config: config).call(branch)
+    end
+
     desc "vscode BRANCH", "Attach VS Code to a running container for the given branch"
     def vscode(branch)
       config = Configuration.new
