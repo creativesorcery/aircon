@@ -94,6 +94,69 @@ container_user: vscode
 | `git_name` | `Claude Docker` | Git author name inside the container |
 | `container_user` | `vscode` | Non-root user inside the container (determines home directory) |
 
+## Commands
+
+### `aircon up BRANCH [PORT]`
+
+Start or attach to a dev container for the given branch.
+
+- **BRANCH** (required) — Git branch name
+- **PORT** (optional, default: `3001`) — Host port mapped to the container
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--detach` | `-d` | Start container without attaching an interactive session |
+
+The branch name is used as the Docker Compose project name (`-p BRANCH`), so the resulting container is named `BRANCH-SERVICE-1` (e.g. `my-feature-branch-app-1`). This is how aircon identifies and tracks containers per branch.
+
+If a container already exists for the branch, a new shell session is attached. When all shell sessions exit, the container is automatically torn down.
+
+```bash
+aircon up my-feature-branch
+aircon up my-feature-branch 3005
+aircon up my-feature-branch -d
+```
+
+### `aircon down BRANCH`
+
+Tear down the container and volumes for the given branch.
+
+- **BRANCH** (required) — Git branch name to tear down
+
+Stops the Docker Compose services, removes volumes, cleans up orphaned containers, and prunes unused images.
+
+```bash
+aircon down my-feature-branch
+```
+
+### `aircon vscode BRANCH`
+
+Attach VS Code to a running container for the given branch.
+
+- **BRANCH** (required) — Git branch name
+
+Opens VS Code connected to the running container via the Remote - Containers extension. The container must already be running (use `aircon up` first).
+
+```bash
+aircon vscode my-feature-branch
+```
+
+### `aircon init`
+
+Create a sample `.aircon.yml` in the current directory. Aborts if one already exists.
+
+```bash
+aircon init
+```
+
+### `aircon version`
+
+Show the installed aircon version.
+
+```bash
+aircon version
+```
+
 ## How It Works
 
 1. **`aircon up BRANCH`** checks for an existing container matching the branch. If found, it attaches a new shell session.
