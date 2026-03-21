@@ -12,25 +12,30 @@ module Aircon
         @config = config
       end
 
-      def call(branch, port: "3001")
+      def call(branch, port: "3001", detach: false)
         container = Docker.find_container(project: branch, service: @config.service)
 
         if container
-          attach_existing(container, branch)
+          attach_existing(container, branch, detach: detach)
         else
-          start_new(branch, port)
+          start_new(branch, port, detach: detach)
         end
       end
 
       private
 
-      def attach_existing(container, branch)
+      def attach_existing(container, branch, detach: false)
+        if detach
+          puts "Container for '#{branch}' is already running: #{container}"
+          return
+        end
+
         puts "Attaching to existing container for '#{branch}'..."
         system("docker", "exec", "-it", container, "bash")
         cleanup_if_last(container, branch)
       end
 
-      def start_new(branch, port)
+      def start_new(branch, port, detach: false)
         if @config.gh_token.nil? || @config.gh_token.to_s.empty?
           warn "Warning: gh_token not configured. GitHub CLI (gh) will not be authenticated."
           warn "  Set gh_token in .aircon.yml if you want to use 'gh' commands."
@@ -52,7 +57,11 @@ module Aircon
 
         inject_claude_settings(container)
         setup_container(container, branch)
-        # wait_for_setup(container)
+
+        if detach
+          puts "Container started: #{container}"
+          return
+        end
 
         system("docker", "exec", "-it", container, "bash")
         cleanup_if_last(container, branch)

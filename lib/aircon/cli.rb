@@ -9,9 +9,11 @@ module Aircon
     end
 
     desc "up BRANCH [PORT]", "Start or attach to a dev container for the given branch"
+    method_option :detach, type: :boolean, default: false, aliases: "-d",
+                           desc: "Start container without attaching an interactive session"
     def up(branch, port = "3001")
       config = Configuration.new
-      Commands::Up.new(config: config).call(branch, port: port)
+      Commands::Up.new(config: config).call(branch, port: port, detach: options[:detach])
     end
 
     desc "vscode BRANCH", "Attach VS Code to a running container for the given branch"
