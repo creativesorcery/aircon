@@ -157,7 +157,14 @@ module Aircon
         # Configure git and create branch
         system("docker", "exec", container, "git", "config", "--global", "user.email", @config.git_email)
         system("docker", "exec", container, "git", "config", "--global", "user.name", @config.git_name)
-        system("docker", "exec", container, "git", "checkout", "-b", branch)
+        # Check if branch exists on remote; if so, check it out, otherwise create new
+        _, status = Open3.capture2("docker", "exec", container, "git", "ls-remote", "--heads", "origin", branch)
+        if status.success? && !_.strip.empty?
+          system("docker", "exec", container, "git", "fetch", "origin", branch)
+          system("docker", "exec", container, "git", "checkout", "-b", branch, "origin/#{branch}")
+        else
+          system("docker", "exec", container, "git", "checkout", "-b", branch)
+        end
 
         # If you have the official anthropic marketplace plugin installed, it will always make a call to the anthropic github repo on claude startup. It uses SSH, but it should be https for universal compatibility since its a public repository.
         system("docker", "exec", container, "git", "config", "--global", "url.\"https://github.com/anthropics/\".insteadOf", "ssh://git@github.com/anthropics/")
