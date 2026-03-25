@@ -158,7 +158,8 @@ module Aircon
           system("docker", "exec", container, "git", "fetch", "origin", branch)
           system("docker", "exec", container, "git", "checkout", "-b", branch, "origin/#{branch}")
         else
-          system("docker", "exec", container, "git", "checkout", "-b", branch)
+          system("docker", "exec", container, "git", "fetch", "origin", "main")
+          system("docker", "exec", container, "git", "checkout", "-b", branch, "origin/main")
         end
 
         # If you have the official anthropic marketplace plugin installed, it will always make a call to the anthropic github repo on claude startup. It uses SSH, but it should be https for universal compatibility since its a public repository.
