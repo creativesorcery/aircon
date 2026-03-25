@@ -2,12 +2,11 @@
 
 require "fileutils"
 require "open3"
+require "tmpdir"
 
 module Aircon
   module Commands
     class Up
-      STAGING_DIR = ".aircon"
-
       def initialize(config:)
         @config = config
       end
@@ -68,33 +67,29 @@ module Aircon
       end
 
       def inject_claude_settings(container)
-        staging = File.join(STAGING_DIR, "host_claude_settings")
-        FileUtils.rm_rf(STAGING_DIR)
-        FileUtils.mkdir_p(staging)
+        Dir.mktmpdir("aircon_claude_settings") do |staging|
+          claude_config = File.expand_path(@config.claude_config_path)
+          claude_dir = File.expand_path(@config.claude_dir_path)
 
-        claude_config = File.expand_path(@config.claude_config_path)
-        claude_dir = File.expand_path(@config.claude_dir_path)
+          FileUtils.cp(claude_config, File.join(staging, ".claude.json")) if File.exist?(claude_config)
 
-        FileUtils.cp(claude_config, File.join(staging, ".claude.json")) if File.exist?(claude_config)
+          if File.directory?(claude_dir)
+            FileUtils.cp_r(claude_dir, File.join(staging, ".claude"))
+          else
+            FileUtils.mkdir_p(File.join(staging, ".claude"))
+          end
 
-        if File.directory?(claude_dir)
-          FileUtils.cp_r(claude_dir, File.join(staging, ".claude"))
-        else
-          FileUtils.mkdir_p(File.join(staging, ".claude"))
+          write_credentials(File.join(staging, ".claude", ".credentials.json"))
+
+          home = @config.container_home
+          rewrite_paths(staging, home)
+          user = @config.container_user
+          system("docker", "cp", "#{File.join(staging, '.claude')}/.", "#{container}:#{home}/.claude")
+          system("docker", "cp", File.join(staging, ".claude.json"), "#{container}:#{home}/.claude.json")
+          system("docker", "exec", "-u", "root", container,
+                 "bash", "-c", "chmod -R u+rwX #{home}/.claude #{home}/.claude.json && " \
+                               "chown -R #{user}:#{user} #{home}/.claude #{home}/.claude.json")
         end
-
-        write_credentials(File.join(staging, ".claude", ".credentials.json"))
-
-        home = @config.container_home
-        rewrite_paths(staging, home)
-        user = @config.container_user
-        system("docker", "cp", "#{File.join(staging, '.claude')}/.", "#{container}:#{home}/.claude")
-        system("docker", "cp", File.join(staging, ".claude.json"), "#{container}:#{home}/.claude.json")
-        system("docker", "exec", "-u", "root", container,
-               "bash", "-c", "chmod -R u+rwX #{home}/.claude #{home}/.claude.json && " \
-                             "chown -R #{user}:#{user} #{home}/.claude #{home}/.claude.json")
-      ensure
-        FileUtils.rm_rf(STAGING_DIR)
       end
 
       def rewrite_paths(staging, container_home)
