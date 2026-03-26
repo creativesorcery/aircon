@@ -152,6 +152,14 @@ module Aircon
         # Configure git and create branch
         system("docker", "exec", container, "git", "config", "--global", "user.email", @config.git_email)
         system("docker", "exec", container, "git", "config", "--global", "user.name", @config.git_name)
+        # Configure git authentication for GitHub using the personal access token
+        if @config.gh_token && !@config.gh_token.to_s.empty?
+          authed = "https://x-access-token:#{@config.gh_token}@github.com/"
+          system("docker", "exec", container, "git", "config", "--global",
+                 "url.#{authed}.insteadOf", "https://github.com/")
+          system("docker", "exec", container, "git", "config", "--global",
+                 "url.#{authed}.insteadOf", "git@github.com:")
+        end
         # Check if branch exists on remote; if so, check it out, otherwise create new
         _, status = Open3.capture2("docker", "exec", container, "git", "ls-remote", "--heads", "origin", branch)
         if status.success? && !_.strip.empty?
