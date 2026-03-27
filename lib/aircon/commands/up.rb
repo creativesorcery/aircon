@@ -11,30 +11,30 @@ module Aircon
         @config = config
       end
 
-      def call(branch, port: "3001", detach: false)
-        container = Docker.find_container(project: branch, service: @config.service)
+      def call(name, branch:, port: "3001", detach: false)
+        container = Docker.find_container(project: name, service: @config.service)
 
         if container
-          attach_existing(container, branch, detach: detach)
+          attach_existing(container, name, detach: detach)
         else
-          start_new(branch, port, detach: detach)
+          start_new(name, branch, port, detach: detach)
         end
       end
 
       private
 
-      def attach_existing(container, branch, detach: false)
+      def attach_existing(container, name, detach: false)
         if detach
-          puts "Container for '#{branch}' is already running: #{container}"
+          puts "Container for '#{name}' is already running: #{container}"
           return
         end
 
-        puts "Attaching to existing container for '#{branch}'..."
+        puts "Attaching to existing container for '#{name}'..."
         system("docker", "exec", "-it", container, "bash")
-        cleanup_if_last(container, branch)
+        cleanup_if_last(container, name)
       end
 
-      def start_new(branch, port, detach: false)
+      def start_new(name, branch, port, detach: false)
         if @config.gh_token.nil? || @config.gh_token.to_s.empty?
           warn "Warning: gh_token not configured. GitHub CLI (gh) will not be authenticated."
           warn "  Set gh_token in .aircon.yml if you want to use 'gh' commands."
@@ -48,10 +48,10 @@ module Aircon
 
         system(env, "docker", "compose",
                "-f", @config.compose_file,
-               "-p", branch,
+               "-p", name,
                "up", "-d", "--build")
 
-        container = Docker.find_container(project: branch, service: @config.service)
+        container = Docker.find_container(project: name, service: @config.service)
         abort "Error: Could not find container after starting services." unless container
 
         inject_claude_settings(container)
@@ -63,7 +63,7 @@ module Aircon
         end
 
         system("docker", "exec", "-it", container, "bash")
-        cleanup_if_last(container, branch)
+        cleanup_if_last(container, name)
       end
 
       def inject_claude_settings(container)
@@ -184,14 +184,14 @@ module Aircon
       #   end
       # end
 
-      def cleanup_if_last(container, branch)
+      def cleanup_if_last(container, name)
         out, = Open3.capture2("docker", "exec", container, "pgrep", "-x", "bash")
         remaining = out.strip.lines.size
 
         return unless remaining == 0
 
         puts "Last session ended. Cleaning up..."
-        system("docker", "compose", "-p", branch, "down", "-v", "--remove-orphans")
+        system("docker", "compose", "-p", name, "down", "-v", "--remove-orphans")
         system("docker", "image", "prune", "-f")
       end
     end

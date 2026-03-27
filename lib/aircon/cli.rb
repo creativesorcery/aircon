@@ -8,24 +8,27 @@ module Aircon
       true
     end
 
-    desc "up BRANCH [PORT]", "Start or attach to a dev container for the given branch"
+    desc "up NAME [PORT]", "Start or attach to a dev container for the given project"
     method_option :detach, type: :boolean, default: false, aliases: "-d",
                            desc: "Start container without attaching an interactive session"
-    def up(branch, port = "3001")
+    method_option :branch, type: :string, aliases: "-b",
+                           desc: "Git branch to check out (defaults to NAME)"
+    def up(name, port = "3001")
       config = Configuration.new
-      Commands::Up.new(config: config).call(branch, port: port, detach: options[:detach])
+      branch = options[:branch] || name
+      Commands::Up.new(config: config).call(name, branch: branch, port: port, detach: options[:detach])
     end
 
-    desc "down BRANCH", "Tear down the container and volumes for the given branch"
-    def down(branch)
+    desc "down NAME", "Tear down the container and volumes for the given project"
+    def down(name)
       config = Configuration.new
-      Commands::Down.new(config: config).call(branch)
+      Commands::Down.new(config: config).call(name)
     end
 
-    desc "vscode BRANCH", "Attach VS Code to a running container for the given branch"
-    def vscode(branch)
+    desc "vscode NAME", "Attach VS Code to a running container for the given project"
+    def vscode(name)
       config = Configuration.new
-      Commands::Vscode.new(config: config).call(branch)
+      Commands::Vscode.new(config: config).call(name)
     end
 
     desc "init", "Create a sample .aircon.yml in the current directory"

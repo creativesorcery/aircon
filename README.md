@@ -1,8 +1,8 @@
 # Aircon
 
-Manage Docker-based isolated Claude Code development containers — one per git branch.
+Manage Docker-based isolated Claude Code development containers.
 
-Aircon spins up a Docker Compose environment for each branch, injects your Claude Code credentials at runtime (via `docker cp`, no Dockerfile changes needed), and attaches an interactive shell. When the last shell session exits, the container is automatically cleaned up.
+Aircon spins up a Docker Compose environment for each project, injects your Claude Code credentials at runtime (via `docker cp`, no Dockerfile changes needed), and attaches an interactive shell. When the last shell session exits, the container is automatically cleaned up.
 
 ## Prerequisites
 
@@ -30,14 +30,20 @@ gem "aircon"
 # Generate a config file (optional)
 aircon init
 
-# Start a dev container for a branch
-aircon up my-feature-branch
+# Start a dev container (uses "my-project" as both project name and git branch)
+aircon up my-project
+
+# Use a different git branch than the project name
+aircon up my-project -b feature/some-branch
 
 # Start on a custom port (default: 3001)
-aircon up my-feature-branch 3005
+aircon up my-project 3005
 
 # Attach VS Code to a running container
-aircon vscode my-feature-branch
+aircon vscode my-project
+
+# Tear down a container
+aircon down my-project
 
 # Show installed version
 aircon version
@@ -96,49 +102,51 @@ container_user: vscode
 
 ## Commands
 
-### `aircon up BRANCH [PORT]`
+### `aircon up NAME [PORT]`
 
-Start or attach to a dev container for the given branch.
+Start or attach to a dev container for the given project.
 
-- **BRANCH** (required) — Git branch name
+- **NAME** (required) — Project name (also used as the git branch unless `--branch` is specified)
 - **PORT** (optional, default: `3001`) — Host port mapped to the container
 
 | Option | Alias | Description |
 |--------|-------|-------------|
+| `--branch` | `-b` | Git branch to check out (defaults to NAME) |
 | `--detach` | `-d` | Start container without attaching an interactive session |
 
-The branch name is used as the Docker Compose project name (`-p BRANCH`), so the resulting container is named `BRANCH-SERVICE-1` (e.g. `my-feature-branch-app-1`). This is how aircon identifies and tracks containers per branch.
+The project name is used as the Docker Compose project name (`-p NAME`), so the resulting container is named `NAME-SERVICE-1` (e.g. `my-project-app-1`). This is how aircon identifies and tracks containers.
 
-If a container already exists for the branch, a new shell session is attached. When all shell sessions exit, the container is automatically torn down.
+If a container already exists for the project, a new shell session is attached. When all shell sessions exit, the container is automatically torn down.
 
 ```bash
-aircon up my-feature-branch
-aircon up my-feature-branch 3005
-aircon up my-feature-branch -d
+aircon up my-project
+aircon up my-project -b feature/some-branch
+aircon up my-project 3005
+aircon up my-project -d
 ```
 
-### `aircon down BRANCH`
+### `aircon down NAME`
 
-Tear down the container and volumes for the given branch.
+Tear down the container and volumes for the given project.
 
-- **BRANCH** (required) — Git branch name to tear down
+- **NAME** (required) — Project name to tear down
 
 Stops the Docker Compose services, removes volumes, cleans up orphaned containers, and prunes unused images.
 
 ```bash
-aircon down my-feature-branch
+aircon down my-project
 ```
 
-### `aircon vscode BRANCH`
+### `aircon vscode NAME`
 
-Attach VS Code to a running container for the given branch.
+Attach VS Code to a running container for the given project.
 
-- **BRANCH** (required) — Git branch name
+- **NAME** (required) — Project name
 
 Opens VS Code connected to the running container via the Remote - Containers extension. The container must already be running (use `aircon up` first).
 
 ```bash
-aircon vscode my-feature-branch
+aircon vscode my-project
 ```
 
 ### `aircon init`
@@ -159,14 +167,13 @@ aircon version
 
 ## How It Works
 
-1. **`aircon up BRANCH`** checks for an existing container matching the branch. If found, it attaches a new shell session.
+1. **`aircon up NAME`** checks for an existing container matching the project name. If found, it attaches a new shell session.
 2. On first invocation, it builds and starts the Docker Compose environment, then injects Claude Code settings via `docker cp` (no COPY lines needed in your Dockerfile).
 3. Credentials are sourced from macOS Keychain (`keychain`) or a file (`file`) based on your `credentials_source` setting.
 4. Claude Code is automatically installed inside the container if not already present.
-5. Git is configured with the `git_email`/`git_name` settings, and a new branch matching the provided name is checked out.
-6. The container startup waits for a `/tmp/setup-done` sentinel file before attaching a shell — your Compose entrypoint should `touch /tmp/setup-done` when ready.
-7. When the last `bash` session exits, the container is torn down and images are pruned.
-8. **`aircon vscode BRANCH`** hex-encodes the container ID and opens VS Code attached to it.
+5. Git is configured with the `git_email`/`git_name` settings, and a branch is checked out (defaults to `NAME`, or the value of `--branch` if provided).
+6. When the last `bash` session exits, the container is torn down and images are pruned.
+7. **`aircon vscode NAME`** hex-encodes the container ID and opens VS Code attached to it.
 
 ## Notes
 

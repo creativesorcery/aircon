@@ -7,18 +7,18 @@ module Aircon
         @config = config
       end
 
-      def call(branch)
-        container = Docker.find_container(project: branch, service: @config.service)
+      def call(name)
+        container = Docker.find_container(project: name, service: @config.service)
 
         unless container
-          abort "Error: No running container found for project '#{branch}'.\n" \
-                "Start one first with: aircon up #{branch}"
+          abort "Error: No running container found for project '#{name}'.\n" \
+                "Start one first with: aircon up #{name}"
         end
 
         hex_id = Docker.hex_encode_id(container)
         folder_uri = "vscode-remote://attached-container+#{hex_id}#{@config.workspace_path}"
 
-        puts "Attaching VS Code to container #{container} for project '#{branch}'..."
+        puts "Attaching VS Code to container #{container} for project '#{name}'..."
         system("code", "--folder-uri", folder_uri)
       end
     end

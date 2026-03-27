@@ -7,9 +7,9 @@ module Aircon
         @config = config
       end
 
-      def call(branch)
-        puts "Tearing down containers for '#{branch}'..."
-        system("docker", "compose", "-p", branch, "down", "-v", "--remove-orphans")
+      def call(name)
+        puts "Tearing down containers for '#{name}'..."
+        system("docker", "compose", "-p", name, "down", "-v", "--remove-orphans")
         system("docker", "image", "prune", "-f")
       end
     end
