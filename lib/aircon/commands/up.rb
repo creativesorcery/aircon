@@ -43,7 +43,8 @@ module Aircon
         env = {
           "HOST_PORT" => port.to_s,
           "GH_TOKEN" => @config.gh_token.to_s,
-          "GITHUB_PERSONAL_ACCESS_TOKEN" => @config.gh_token.to_s
+          "GITHUB_PERSONAL_ACCESS_TOKEN" => @config.gh_token.to_s,
+          "CLAUDE_CODE_OAUTH_TOKEN" => @config.claude_code_oauth_token.to_s
         }
 
         system(env, "docker", "compose",
@@ -79,8 +80,6 @@ module Aircon
             FileUtils.mkdir_p(File.join(staging, ".claude"))
           end
 
-          write_credentials(File.join(staging, ".claude", ".credentials.json"))
-
           home = @config.container_home
           rewrite_paths(staging, home)
           user = @config.container_user
@@ -107,29 +106,6 @@ module Aircon
         end
       end
 
-      def write_credentials(dest)
-        case @config.credentials_source
-        when "keychain"
-          out, status = Open3.capture2(
-            "security", "find-generic-password",
-            "-a", ENV.fetch("USER", "unknown"),
-            "-w", "-s", "Claude Code-credentials"
-          )
-          if status.success?
-            File.write(dest, out)
-          else
-            warn "Warning: Could not read credentials from keychain."
-          end
-        when "file"
-          src = File.expand_path("~/.claude/.credentials.json")
-          if File.exist?(src)
-            FileUtils.cp(src, dest)
-          else
-            warn "Warning: Credentials file not found at #{src}"
-          end
-        end
-      end
-
       def setup_container(container, branch)
         home = @config.container_home
 
@@ -147,6 +123,12 @@ module Aircon
           system("docker", "exec", "-u", "root", container, "bash", "-c",
                  "grep -qF 'export GITHUB_PERSONAL_ACCESS_TOKEN=' /etc/bash.bashrc 2>/dev/null || " \
                  "echo 'export GITHUB_PERSONAL_ACCESS_TOKEN=\"#{@config.gh_token}\"' >> /etc/bash.bashrc")
+        end
+
+        if @config.claude_code_oauth_token && !@config.claude_code_oauth_token.to_s.empty?
+          system("docker", "exec", "-u", "root", container, "bash", "-c",
+                 "grep -qF 'export CLAUDE_CODE_OAUTH_TOKEN=' /etc/bash.bashrc 2>/dev/null || " \
+                 "echo 'export CLAUDE_CODE_OAUTH_TOKEN=\"#{@config.claude_code_oauth_token}\"' >> /etc/bash.bashrc")
         end
 
         # Configure git and create branch

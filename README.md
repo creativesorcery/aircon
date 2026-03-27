@@ -62,8 +62,8 @@ compose_file: docker-compose.yml
 # GitHub personal access token (supports ERB)
 gh_token: <%= ENV['GITHUB_TOKEN'] %>
 
-# How to obtain Claude Code credentials: "keychain" (macOS) or "file"
-credentials_source: keychain
+# Claude Code OAuth token (supports ERB)
+claude_code_oauth_token: <%= ENV['CLAUDE_CODE_OAUTH_TOKEN'] %>
 
 # Workspace folder path inside the container
 workspace_path: /myproject
@@ -91,7 +91,7 @@ container_user: vscode
 |-----|---------|-------------|
 | `compose_file` | `docker-compose.yml` | Docker Compose filename |
 | `gh_token` | `nil` | GitHub token value (supports ERB) |
-| `credentials_source` | `keychain` | `keychain` (macOS) or `file` (~/.claude/.credentials.json) |
+| `claude_code_oauth_token` | `nil` | Claude Code OAuth token (supports ERB) |
 | `workspace_path` | `/#{basename of cwd}` | Container workspace folder path |
 | `claude_config_path` | `~/.claude.json` | Path to host's claude.json settings file |
 | `claude_dir_path` | `~/.claude` | Path to host's .claude directory |
@@ -169,7 +169,7 @@ aircon version
 
 1. **`aircon up NAME`** checks for an existing container matching the project name. If found, it attaches a new shell session.
 2. On first invocation, it builds and starts the Docker Compose environment, then injects Claude Code settings via `docker cp` (no COPY lines needed in your Dockerfile).
-3. Credentials are sourced from macOS Keychain (`keychain`) or a file (`file`) based on your `credentials_source` setting.
+3. If `claude_code_oauth_token` is configured, it is set as the `CLAUDE_CODE_OAUTH_TOKEN` environment variable inside the container.
 4. Claude Code is automatically installed inside the container if not already present.
 5. Git is configured with the `git_email`/`git_name` settings, and a branch is checked out (defaults to `NAME`, or the value of `--branch` if provided).
 6. When the last `bash` session exits, the container is torn down and images are pruned.

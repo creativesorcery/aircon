@@ -57,8 +57,8 @@ module Aircon
       # GitHub personal access token (supports ERB)
       # gh_token: <%= ENV['GITHUB_TOKEN'] %>
 
-      # How to obtain Claude Code credentials: "keychain" (macOS) or "file"
-      # credentials_source: keychain
+      # Claude Code OAuth token (supports ERB)
+      # claude_code_oauth_token: <%= ENV['CLAUDE_CODE_OAUTH_TOKEN'] %>
 
       # Workspace folder path inside the container
       # workspace_path: /myproject
