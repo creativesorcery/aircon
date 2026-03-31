@@ -156,16 +156,6 @@ module Aircon
         system("docker", "exec", container, "git", "config", "--global", "url.\"https://github.com/anthropics/\".insteadOf", "ssh://git@github.com/anthropics/")
       end
 
-      # def wait_for_setup(container)
-      #   puts "Waiting for container setup to complete..."
-      #   loop do
-      #     _, status = Open3.capture2("docker", "exec", container, "test", "-f", "/tmp/setup-done")
-      #     break if status.success?
-
-      #     sleep 1
-      #   end
-      # end
-
       def cleanup_if_last(container, name)
         out, = Open3.capture2("docker", "exec", container, "pgrep", "-x", "bash")
         remaining = out.strip.lines.size
