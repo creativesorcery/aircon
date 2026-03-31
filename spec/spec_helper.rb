@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "aircon"
+require "fakefs/spec_helpers"
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
