@@ -22,6 +22,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "thor", "~> 1.3"
 
+  spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec", "~> 3.13"
   spec.add_development_dependency "fakefs"
 end
