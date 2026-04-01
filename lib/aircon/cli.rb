@@ -78,6 +78,9 @@ module Aircon
 
       # Non-root user inside the container
       # container_user: vscode
+
+      # Script to run inside the container after setup (path relative to this file)
+      # init_script: scripts/init.sh
     YAML
   end
 end

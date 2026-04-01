@@ -20,7 +20,8 @@ RSpec.describe Aircon::CLI do
       container_user: "vscode",
       claude_config_path: "~/.claude.json",
       claude_dir_path: "~/.claude",
-      workspace_path: "/workspace")
+      workspace_path: "/workspace",
+      init_script: nil)
   end
 
   before { allow(Aircon::Configuration).to receive(:new).and_return(config) }
@@ -176,6 +177,37 @@ RSpec.describe Aircon::CLI do
       end
     end
 
+    describe "init_script" do
+      context "when init_script is configured and the file exists" do
+        before do
+          allow(config).to receive(:init_script).and_return("scripts/setup.sh")
+          FileUtils.mkdir_p("scripts")
+          File.write("scripts/setup.sh", "#!/bin/bash\necho hello")
+        end
+
+        it "copies and runs the script in the container after setup" do
+          described_class.start(["up", "myproject"])
+          expect(@up).to have_received(:system).with(
+            "docker", "cp", File.expand_path("scripts/setup.sh"), "#{container_id}:/home/vscode/.aircon_init.sh"
+          )
+          expect(@up).to have_received(:system).with(
+            "docker", "exec", container_id, "bash", "-l", "/home/vscode/.aircon_init.sh"
+          )
+        end
+      end
+
+      context "when init_script is configured but the file does not exist" do
+        before { allow(config).to receive(:init_script).and_return("missing.sh") }
+
+        it "skips execution and warns" do
+          expect { described_class.start(["up", "myproject"]) }.to output(/init_script.*missing\.sh.*not found/i).to_stderr
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", container_id, "bash", "-l", "/home/vscode/.aircon_init.sh"
+          )
+        end
+      end
+    end
+
     describe "aircon up <project_name> --branch <feature_branch>" do
       context "when the branch does not exist on remote" do
         it "creates a new branch from origin/main" do
@@ -297,6 +329,7 @@ RSpec.describe Aircon::CLI do
       expect(content).to include("gh_token")
       expect(content).to include("claude_code_oauth_token")
       expect(content).to include("container_user")
+      expect(content).to include("init_script")
     end
 
     it "aborts if .aircon.yml already exists" do
