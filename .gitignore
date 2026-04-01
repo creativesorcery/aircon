@@ -1,0 +1,23 @@
+# Gem build artifacts
+*.gem
+pkg/
+
+# Bundler
+.bundle/
+vendor/bundle/
+Gemfile.lock
+
+# RSpec
+.rspec_status
+coverage/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Temp
+tmp/
+log/

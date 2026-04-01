@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
                      "injects Claude Code credentials, and attaches an interactive shell or VS Code."
   spec.homepage = "https://github.com/creativesorcery/aircon"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 4.0.0"
+  spec.required_ruby_version = ">= 3.3.0"
 
   spec.files = Dir["lib/**/*.rb", "exe/*", "LICENSE.txt", "README.md"]
   spec.bindir = "exe"
