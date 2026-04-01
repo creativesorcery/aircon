@@ -84,7 +84,7 @@ module Aircon
       # git_name: Claude Docker
 
       # Non-root user inside the container
-      # container_user: vscode
+      # container_user: appuser
 
       # Script to run inside the container after setup (path relative to project root)
       # Defaults to .aircon/aircon_init.sh — edit that file to add your setup steps.
