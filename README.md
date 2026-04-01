@@ -1,15 +1,26 @@
 # Aircon
 
-Manage Docker-based isolated Claude Code development containers.
+No more worktrees. Aircon gives every feature branch its own isolated Docker container pre-loaded with Claude Code, your credentials, and a running shell — so you can work on multiple branches in parallel without them stepping on each other. Dependencies like databases are isolated, so a db migration in one container does not affect the other.
 
-Aircon spins up a Docker Compose environment for each project, injects your Claude Code credentials at runtime (via `docker cp`, no Dockerfile changes needed), and attaches an interactive shell. When the last shell session exits, the container is automatically cleaned up.
+Each container gets:
+- Your Claude Code credentials and settings injected at startup (no Dockerfile changes needed)
+- Claude Code installed automatically if not already in the image
+- Your GitHub token set for authenticated `git` and `gh` operations
+- A git branch checked out and ready to go
+- An optional project-specific init script that runs after the container is up
+
+When you close the last shell session, the container and its volumes are automatically torn down.
+
+---
 
 ## Prerequisites
 
 - Ruby >= 3.3.0
 - Docker and Docker Compose
-- Claude Code installed on the host (for credentials)
-- VS Code with the Remote - Containers extension (for `aircon vscode`)
+- Claude Code installed on your host machine (aircon copies credentials from it)
+- VS Code with the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension (only needed for `aircon vscode`)
+
+---
 
 ## Installation
 
@@ -23,64 +34,169 @@ Or add to your Gemfile:
 gem "aircon"
 ```
 
-## Quick Start
+---
+
+## Getting Started
+
+**1. Initialize aircon in your project:**
 
 ```bash
-# Generate config, Dockerfile, and docker-compose.yml (run once per project)
+cd your-project
 aircon init
+```
 
-# Start a dev container (uses "my-project" as both project name and git branch)
-aircon up my-project
+This creates four files under `.aircon/`:
 
-# Use a different git branch than the project name
-aircon up my-project -b feature/some-branch
+| File | Purpose |
+|------|---------|
+| `aircon.yml` | Main config (tokens, paths, user settings) |
+| `aircon_init.sh` | Script run inside the container after setup |
+| `Dockerfile` | Base image for your dev container, change it or use your own |
+| `docker-compose.yml` | Compose config wired to the Dockerfile, change it or use your own |
 
-# Start on a custom port (default: 3001)
-aircon up my-project 3005
+Existing files are never overwritten, so `aircon init` is safe to re-run.
 
-# Attach VS Code to a running container
-aircon vscode my-project
+**2. Configure your tokens:**
 
-# Tear down a container
-aircon down my-project
+Edit `.aircon/aircon.yml` and set at minimum:
 
-# Show installed version
+```yaml
+gh_token: <%= ENV['GITHUB_TOKEN'] %>
+```
+
+**3. Start a container:**
+
+```bash
+aircon up my-feature
+```
+
+This builds the image, injects your Claude credentials, checks out a branch named `my-feature`, runs your init script, and drops you into a shell inside the container. The container and dependencies set in the docker-compose file will all be running under the `my-feature` docker project, fully isolating it from other containers.
+
+---
+
+## Commands
+
+### `aircon up NAME [PORT]`
+
+Start or attach to a dev container.
+
+```bash
+aircon up my-feature               # start on default port 3001
+aircon up my-feature 3005          # start on port 3005
+aircon up my-feature -b feat/auth  # use a different git branch than NAME
+aircon up my-feature -d            # start detached (no interactive shell)
+```
+
+**What `aircon up` does, step by step:**
+
+1. Looks for an existing container named `NAME-SERVICE-1` (e.g. `my-feature-app-1`).
+   - If found → attaches a new `bash` session to it and skips to step 12.
+2. Warns if `gh_token` is not configured.
+3. Runs `docker compose up -d --build` with `HOST_PORT`, `AIRCON_APP_NAME`, `AIRCON_CONTAINER_USER`, and `AIRCON_WORKSPACE_PATH` injected as environment variables.
+4. Copies `~/.claude.json` and `~/.claude/` from your host into the container via `docker cp` (no `COPY` lines needed in your Dockerfile). Host home paths inside those files are rewritten to match the container home directory.
+5. Installs Claude Code inside the container if not already present (`curl -fsSL https://claude.ai/install.sh | bash`).
+6. Adds `~/.local/bin` to `PATH` in `/etc/bash.bashrc` so `claude` is available in all sessions.
+7. Writes `GH_TOKEN` and `GITHUB_PERSONAL_ACCESS_TOKEN` to `/etc/bash.bashrc` (if `gh_token` is set).
+8. Writes `CLAUDE_CODE_OAUTH_TOKEN` to `/etc/bash.bashrc` (if configured).
+9. Sets `git config user.email` and `git config user.name` globally inside the container.
+10. Configures `git` to authenticate GitHub URLs with your token (covers both `https://github.com/` and `git@github.com:`).
+11. Checks out the branch:
+    - If the branch exists on `origin` → fetches and checks it out.
+    - Otherwise → creates a new branch from `origin/main`.
+12. Runs the `init_script` (`.aircon/aircon_init.sh` by default) inside the container via `bash -l`, if the file exists.
+13. Attaches an interactive `bash` session.
+14. When the last `bash` session exits → runs `docker compose down -v --remove-orphans` and `docker image prune -f`.
+
+**Options:**
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--branch BRANCH` | `-b` | Git branch to check out (defaults to NAME) |
+| `--detach` | `-d` | Start without attaching an interactive session |
+
+---
+
+### `aircon down NAME`
+
+Tear down the container and volumes for a project.
+
+```bash
+aircon down my-feature
+```
+
+Runs `docker compose down -v --remove-orphans` and prunes unused images. Use this to clean up manually if you need to reset state without waiting for a session to end.
+
+---
+
+### `aircon vscode NAME`
+
+Attach VS Code to a running container.
+
+```bash
+aircon vscode my-feature
+```
+
+The container must already be running (`aircon up` first). Opens VS Code connected to the container via the Dev Containers extension, with the workspace set to `workspace_path`.
+
+---
+
+### `aircon init`
+
+Generate the `.aircon/` config files in the current directory.
+
+```bash
+aircon init
+```
+
+Creates `aircon.yml`, `aircon_init.sh`, `Dockerfile`, and `docker-compose.yml` under `.aircon/`. Safe to re-run — existing files are not overwritten.
+
+---
+
+### `aircon version`
+
+Print the installed version.
+
+```bash
 aircon version
 ```
 
+---
+
 ## Configuration
 
-Create an `.aircon/aircon.yml` in your project root (use `aircon init` to generate a template). All values are optional — sensible defaults are provided.
-
-ERB is supported, so you can use dynamic values like environment variables.
+Config is loaded from `.aircon/aircon.yml` in your project root. All keys are optional. ERB is supported, so you can pull in environment variables.
 
 ```yaml
 # Docker Compose file to use
 compose_file: .aircon/docker-compose.yml
 
-# GitHub personal access token (supports ERB)
+# Application name — used for DB credentials in the default Compose template
+# Defaults to the basename of the current directory
+app_name: my-app
+
+# GitHub personal access token — authenticates git and gh inside the container
 gh_token: <%= ENV['GITHUB_TOKEN'] %>
 
-# Claude Code OAuth token (supports ERB)
+# Claude Code OAuth token — set as CLAUDE_CODE_OAUTH_TOKEN inside the container
 claude_code_oauth_token: <%= ENV['CLAUDE_CODE_OAUTH_TOKEN'] %>
 
 # Workspace folder path inside the container
-workspace_path: /myproject
+workspace_path: /my-app
 
-# Path to host's Claude config file
+# Path to your Claude config file on the host
 claude_config_path: ~/.claude.json
 
-# Path to host's Claude directory
+# Path to your Claude directory on the host
 claude_dir_path: ~/.claude
 
-# Docker Compose service name for the main container
+# Docker Compose service name
 service: app
 
-# Git author identity inside the container
+# Git identity inside the container
 git_email: claude_docker@localhost.com
 git_name: Claude Docker
 
-# Non-root user inside the container
+# Non-root user inside the container (determines home directory)
 container_user: appuser
 
 # Script to run inside the container after setup (path relative to this file)
@@ -91,99 +207,42 @@ init_script: .aircon/aircon_init.sh
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `compose_file` | `.aircon/docker-compose.yml` | Docker Compose filename |
-| `app_name` | basename of cwd | Application name (used for DB credentials in the default compose template) |
-| `gh_token` | `nil` | GitHub token value (supports ERB) |
-| `claude_code_oauth_token` | `nil` | Claude Code OAuth token (supports ERB) |
-| `workspace_path` | `/workspace` | Container workspace folder path |
-| `claude_config_path` | `~/.claude.json` | Path to host's claude.json settings file |
-| `claude_dir_path` | `~/.claude` | Path to host's .claude directory |
-| `service` | `app` | Docker Compose service name |
+| `compose_file` | `.aircon/docker-compose.yml` | Docker Compose file to use |
+| `app_name` | basename of cwd | App name passed to Compose as `AIRCON_APP_NAME` |
+| `gh_token` | `nil` | GitHub token; sets `GH_TOKEN` and `GITHUB_PERSONAL_ACCESS_TOKEN` in the container |
+| `claude_code_oauth_token` | `nil` | Claude Code OAuth token; sets `CLAUDE_CODE_OAUTH_TOKEN` in the container |
+| `workspace_path` | `/workspace` | Workspace folder path inside the container |
+| `claude_config_path` | `~/.claude.json` | Host path to `claude.json` |
+| `claude_dir_path` | `~/.claude` | Host path to `.claude/` directory |
+| `service` | `app` | Docker Compose service name for the main container |
 | `git_email` | `claude_docker@localhost.com` | Git author email inside the container |
 | `git_name` | `Claude Docker` | Git author name inside the container |
-| `container_user` | `appuser` | Non-root user inside the container (determines home directory) |
-| `init_script` | `.aircon/aircon_init.sh` | Script to run inside the container after setup |
+| `container_user` | `appuser` | Non-root user inside the container |
+| `init_script` | `.aircon/aircon_init.sh` | Script run after setup; has access to `GH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, etc. |
 
-## Commands
-
-### `aircon up NAME [PORT]`
-
-Start or attach to a dev container for the given project.
-
-- **NAME** (required) — Project name (also used as the git branch unless `--branch` is specified)
-- **PORT** (optional, default: `3001`) — Host port mapped to the container
-
-| Option | Alias | Description |
-|--------|-------|-------------|
-| `--branch` | `-b` | Git branch to check out (defaults to NAME) |
-| `--detach` | `-d` | Start container without attaching an interactive session |
-
-The project name is used as the Docker Compose project name (`-p NAME`), so the resulting container is named `NAME-SERVICE-1` (e.g. `my-project-app-1`). This is how aircon identifies and tracks containers.
-
-If a container already exists for the project, a new shell session is attached. When all shell sessions exit, the container is automatically torn down.
-
-```bash
-aircon up my-project
-aircon up my-project -b feature/some-branch
-aircon up my-project 3005
-aircon up my-project -d
-```
-
-### `aircon down NAME`
-
-Tear down the container and volumes for the given project.
-
-- **NAME** (required) — Project name to tear down
-
-Stops the Docker Compose services, removes volumes, cleans up orphaned containers, and prunes unused images.
-
-```bash
-aircon down my-project
-```
-
-### `aircon vscode NAME`
-
-Attach VS Code to a running container for the given project.
-
-- **NAME** (required) — Project name
-
-Opens VS Code connected to the running container via the Remote - Containers extension. The container must already be running (use `aircon up` first).
-
-```bash
-aircon vscode my-project
-```
-
-### `aircon init`
-
-Create `.aircon/aircon.yml`, `.aircon/aircon_init.sh`, `.aircon/Dockerfile`, and `.aircon/docker-compose.yml` in the current directory. Existing files are skipped — safe to run multiple times.
-
-```bash
-aircon init
-```
-
-### `aircon version`
-
-Show the installed aircon version.
-
-```bash
-aircon version
-```
-
-## How It Works
-
-1. **`aircon up NAME`** checks for an existing container matching the project name. If found, it attaches a new shell session.
-2. On first invocation, it builds and starts the Docker Compose environment, then injects Claude Code settings via `docker cp` (no COPY lines needed in your Dockerfile).
-3. If `claude_code_oauth_token` is configured, it is set as the `CLAUDE_CODE_OAUTH_TOKEN` environment variable inside the container.
-4. Claude Code is automatically installed inside the container if not already present.
-5. Git is configured with the `git_email`/`git_name` settings, and a branch is checked out (defaults to `NAME`, or the value of `--branch` if provided).
-6. If `init_script` is set and the file exists, it is copied into the container and run via `bash -l`. This is the place to install dependencies, copy config files, or do any other per-project setup. The script has access to all environment variables configured by aircon (`GH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, etc.).
-7. When the last `bash` session exits, the container is torn down and images are pruned.
-8. **`aircon vscode NAME`** hex-encodes the container ID and opens VS Code attached to it.
+---
 
 ## Notes
 
-- SSH keys are not managed by aircon — they are project-specific
-- Your Dockerfile does **not** need COPY lines for Claude settings; aircon injects them at runtime
+- SSH keys are not managed by aircon — handle them in your `init_script` if needed.
+- Your `Dockerfile` does not need `COPY` instructions for Claude settings; aircon injects them at runtime via `docker cp`.
+- The Docker Compose project name is set to `NAME` (the argument to `aircon up`), so the container will be named `NAME-SERVICE-1` (e.g. `my-feature-app-1`). This is how aircon identifies containers across commands.
+
+---
+
+## Releasing to RubyGems
+
+1. Bump the version in `lib/aircon/version.rb`.
+2. Build and push:
+
+```bash
+gem build aircon.gemspec
+gem push aircon-<version>.gem
+```
+
+You'll be prompted for your RubyGems credentials on first push. Subsequent pushes use the stored API key at `~/.gem/credentials`.
+
+---
 
 ## License
 
