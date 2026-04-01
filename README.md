@@ -51,7 +51,7 @@ aircon version
 
 ## Configuration
 
-Create an `.aircon.yml` in your project root (use `aircon init` to generate a template). All values are optional — sensible defaults are provided.
+Create an `.aircon/aircon.yml` in your project root (use `aircon init` to generate a template). All values are optional — sensible defaults are provided.
 
 ERB is supported, so you can use dynamic values like environment variables.
 
@@ -155,7 +155,7 @@ aircon vscode my-project
 
 ### `aircon init`
 
-Create a sample `.aircon.yml` and `.aircon/aircon_init.sh` in the current directory. Aborts if `.aircon.yml` already exists. Does not overwrite an existing `aircon_init.sh`.
+Create a sample `.aircon/aircon.yml` and `.aircon/aircon_init.sh` in the current directory. Aborts if `.aircon/aircon.yml` already exists. Does not overwrite an existing `aircon_init.sh`.
 
 ```bash
 aircon init

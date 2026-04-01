@@ -32,19 +32,20 @@ module Aircon
       Commands::Vscode.new(config: config).call(name)
     end
 
-    desc "init", "Create a sample .aircon.yml in the current directory"
+    desc "init", "Create a sample .aircon/aircon.yml in the current directory"
     def init
-      dest = File.join(Dir.pwd, ".aircon.yml")
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+
+      dest = File.join(Dir.pwd, ".aircon", "aircon.yml")
       if File.exist?(dest)
-        abort "Error: .aircon.yml already exists in this directory."
+        abort "Error: .aircon/aircon.yml already exists in this directory."
       end
 
-      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
       init_script_dest = File.join(Dir.pwd, ".aircon", "aircon_init.sh")
       File.write(init_script_dest, INIT_SCRIPT_TEMPLATE) unless File.exist?(init_script_dest)
 
       File.write(dest, SAMPLE_CONFIG)
-      puts "Created .aircon.yml"
+      puts "Created .aircon/aircon.yml"
       puts "Created .aircon/aircon_init.sh"
     end
 
@@ -85,7 +86,7 @@ module Aircon
       # Non-root user inside the container
       # container_user: vscode
 
-      # Script to run inside the container after setup (path relative to this file)
+      # Script to run inside the container after setup (path relative to project root)
       # Defaults to .aircon/aircon_init.sh — edit that file to add your setup steps.
       # init_script: .aircon/aircon_init.sh
     YAML

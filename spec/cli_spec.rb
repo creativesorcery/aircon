@@ -317,14 +317,14 @@ RSpec.describe Aircon::CLI do
     # FakeFS::SpecHelpers (active for all examples) isolates all file I/O,
     # so no Dir.mktmpdir / Dir.chdir needed here.
 
-    it "creates .aircon.yml in the current directory" do
+    it "creates .aircon/aircon.yml in the current directory" do
       described_class.start(["init"])
-      expect(File).to exist(File.join(Dir.pwd, ".aircon.yml"))
+      expect(File).to exist(File.join(Dir.pwd, ".aircon", "aircon.yml"))
     end
 
     it "writes the sample config template" do
       described_class.start(["init"])
-      content = File.read(File.join(Dir.pwd, ".aircon.yml"))
+      content = File.read(File.join(Dir.pwd, ".aircon", "aircon.yml"))
       expect(content).to include("compose_file")
       expect(content).to include("gh_token")
       expect(content).to include("claude_code_oauth_token")
@@ -351,15 +351,17 @@ RSpec.describe Aircon::CLI do
       expect(File.read(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))).to eq("existing")
     end
 
-    it "aborts if .aircon.yml already exists" do
-      File.write(File.join(Dir.pwd, ".aircon.yml"), "existing")
+    it "aborts if .aircon/aircon.yml already exists" do
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+      File.write(File.join(Dir.pwd, ".aircon", "aircon.yml"), "existing")
       expect { described_class.start(["init"]) }.to raise_error(SystemExit)
     end
 
-    it "does not overwrite an existing .aircon.yml" do
-      File.write(File.join(Dir.pwd, ".aircon.yml"), "existing")
+    it "does not overwrite an existing .aircon/aircon.yml" do
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+      File.write(File.join(Dir.pwd, ".aircon", "aircon.yml"), "existing")
       expect { described_class.start(["init"]) }.to raise_error(SystemExit)
-      expect(File.read(File.join(Dir.pwd, ".aircon.yml"))).to eq("existing")
+      expect(File.read(File.join(Dir.pwd, ".aircon", "aircon.yml"))).to eq("existing")
     end
   end
 end

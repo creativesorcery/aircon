@@ -5,7 +5,7 @@ require "erb"
 
 module Aircon
   class Configuration
-    CONFIG_FILE = ".aircon.yml"
+    CONFIG_FILE = ".aircon/aircon.yml"
 
     DEFAULTS = {
       "compose_file" => "docker-compose.yml",
