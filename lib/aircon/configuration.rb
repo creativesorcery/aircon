@@ -8,7 +8,8 @@ module Aircon
     CONFIG_FILE = ".aircon/aircon.yml"
 
     DEFAULTS = {
-      "compose_file" => "docker-compose.yml",
+      "compose_file" => ".aircon/docker-compose.yml",
+      "app_name" => nil,
       "gh_token" => nil,
       "claude_code_oauth_token" => nil,
       "workspace_path" => nil,
@@ -21,7 +22,7 @@ module Aircon
       "init_script" => ".aircon/aircon_init.sh"
     }.freeze
 
-    attr_reader :compose_file, :gh_token, :claude_code_oauth_token, :workspace_path,
+    attr_reader :compose_file, :app_name, :gh_token, :claude_code_oauth_token, :workspace_path,
                 :claude_config_path, :claude_dir_path, :service, :git_email, :git_name,
                 :container_user, :init_script
 
@@ -37,9 +38,10 @@ module Aircon
       end
 
       @compose_file = attrs["compose_file"]
+      @app_name = attrs["app_name"] || File.basename(dir)
       @gh_token = attrs["gh_token"]
       @claude_code_oauth_token = attrs["claude_code_oauth_token"]
-      @workspace_path = attrs["workspace_path"] || "/#{File.basename(dir)}"
+      @workspace_path = attrs["workspace_path"] || "/workspace"
       @claude_config_path = attrs["claude_config_path"]
       @claude_dir_path = attrs["claude_dir_path"]
       @service = attrs["service"]

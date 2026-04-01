@@ -40,7 +40,12 @@ module Aircon
           warn "  Set gh_token in .aircon.yml if you want to use 'gh' commands."
         end
 
-        env = { "HOST_PORT" => port.to_s }
+        env = {
+          "HOST_PORT" => port.to_s,
+          "AIRCON_APP_NAME" => @config.app_name,
+          "AIRCON_CONTAINER_USER" => @config.container_user,
+          "AIRCON_WORKSPACE_PATH" => @config.workspace_path
+        }
         system(env, "docker", "compose",
                "-f", @config.compose_file,
                "-p", name,

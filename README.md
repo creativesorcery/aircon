@@ -8,7 +8,6 @@ Aircon spins up a Docker Compose environment for each project, injects your Clau
 
 - Ruby >= 3.3.0
 - Docker and Docker Compose
-- A `docker-compose.yml` (or custom Compose file) in your project
 - Claude Code installed on the host (for credentials)
 - VS Code with the Remote - Containers extension (for `aircon vscode`)
 
@@ -27,7 +26,7 @@ gem "aircon"
 ## Quick Start
 
 ```bash
-# Generate a config file (optional)
+# Generate config, Dockerfile, and docker-compose.yml (run once per project)
 aircon init
 
 # Start a dev container (uses "my-project" as both project name and git branch)
@@ -57,7 +56,7 @@ ERB is supported, so you can use dynamic values like environment variables.
 
 ```yaml
 # Docker Compose file to use
-compose_file: docker-compose.yml
+compose_file: .aircon/docker-compose.yml
 
 # GitHub personal access token (supports ERB)
 gh_token: <%= ENV['GITHUB_TOKEN'] %>
@@ -92,10 +91,11 @@ init_script: .aircon/aircon_init.sh
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `compose_file` | `docker-compose.yml` | Docker Compose filename |
+| `compose_file` | `.aircon/docker-compose.yml` | Docker Compose filename |
+| `app_name` | basename of cwd | Application name (used for DB credentials in the default compose template) |
 | `gh_token` | `nil` | GitHub token value (supports ERB) |
 | `claude_code_oauth_token` | `nil` | Claude Code OAuth token (supports ERB) |
-| `workspace_path` | `/#{basename of cwd}` | Container workspace folder path |
+| `workspace_path` | `/workspace` | Container workspace folder path |
 | `claude_config_path` | `~/.claude.json` | Path to host's claude.json settings file |
 | `claude_dir_path` | `~/.claude` | Path to host's .claude directory |
 | `service` | `app` | Docker Compose service name |
@@ -155,7 +155,7 @@ aircon vscode my-project
 
 ### `aircon init`
 
-Create a sample `.aircon/aircon.yml` and `.aircon/aircon_init.sh` in the current directory. Aborts if `.aircon/aircon.yml` already exists. Does not overwrite an existing `aircon_init.sh`.
+Create `.aircon/aircon.yml`, `.aircon/aircon_init.sh`, `.aircon/Dockerfile`, and `.aircon/docker-compose.yml` in the current directory. Existing files are skipped — safe to run multiple times.
 
 ```bash
 aircon init
