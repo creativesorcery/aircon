@@ -185,6 +185,7 @@ module Aircon
     COMPOSE_TEMPLATE = <<~'YAML'
       services:
         app:
+          image: ${AIRCON_APP_NAME:-aircon}-app:latest
           build:
             context: ..
             dockerfile: .aircon/Dockerfile
