@@ -18,7 +18,7 @@ module Aircon
       "git_email" => "claude_docker@localhost.com",
       "git_name" => "Claude Docker",
       "container_user" => "vscode",
-      "init_script" => nil
+      "init_script" => ".aircon/aircon_init.sh"
     }.freeze
 
     attr_reader :compose_file, :gh_token, :claude_code_oauth_token, :workspace_path,

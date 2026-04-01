@@ -332,6 +332,25 @@ RSpec.describe Aircon::CLI do
       expect(content).to include("init_script")
     end
 
+    it "creates .aircon/aircon_init.sh" do
+      described_class.start(["init"])
+      expect(File).to exist(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))
+    end
+
+    it "writes helpful comments to aircon_init.sh" do
+      described_class.start(["init"])
+      content = File.read(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))
+      expect(content).to include("GH_TOKEN")
+      expect(content).to include("CLAUDE_CODE_OAUTH_TOKEN")
+    end
+
+    it "does not overwrite an existing aircon_init.sh" do
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+      File.write(File.join(Dir.pwd, ".aircon", "aircon_init.sh"), "existing")
+      described_class.start(["init"])
+      expect(File.read(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))).to eq("existing")
+    end
+
     it "aborts if .aircon.yml already exists" do
       File.write(File.join(Dir.pwd, ".aircon.yml"), "existing")
       expect { described_class.start(["init"]) }.to raise_error(SystemExit)
