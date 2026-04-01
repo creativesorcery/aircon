@@ -82,7 +82,7 @@ git_email: claude_docker@localhost.com
 git_name: Claude Docker
 
 # Non-root user inside the container
-container_user: vscode
+container_user: appuser
 
 # Script to run inside the container after setup (path relative to this file)
 init_script: .aircon/aircon_init.sh
@@ -101,7 +101,7 @@ init_script: .aircon/aircon_init.sh
 | `service` | `app` | Docker Compose service name |
 | `git_email` | `claude_docker@localhost.com` | Git author email inside the container |
 | `git_name` | `Claude Docker` | Git author name inside the container |
-| `container_user` | `vscode` | Non-root user inside the container (determines home directory) |
+| `container_user` | `appuser` | Non-root user inside the container (determines home directory) |
 | `init_script` | `.aircon/aircon_init.sh` | Script to run inside the container after setup |
 
 ## Commands
