@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require "thor"
 
 module Aircon
@@ -31,15 +32,21 @@ module Aircon
       Commands::Vscode.new(config: config).call(name)
     end
 
-    desc "init", "Create a sample .aircon.yml in the current directory"
+    desc "init", "Create a sample .aircon/aircon.yml in the current directory"
     def init
-      dest = File.join(Dir.pwd, ".aircon.yml")
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+
+      dest = File.join(Dir.pwd, ".aircon", "aircon.yml")
       if File.exist?(dest)
-        abort "Error: .aircon.yml already exists in this directory."
+        abort "Error: .aircon/aircon.yml already exists in this directory."
       end
 
+      init_script_dest = File.join(Dir.pwd, ".aircon", "aircon_init.sh")
+      File.write(init_script_dest, INIT_SCRIPT_TEMPLATE) unless File.exist?(init_script_dest)
+
       File.write(dest, SAMPLE_CONFIG)
-      puts "Created .aircon.yml"
+      puts "Created .aircon/aircon.yml"
+      puts "Created .aircon/aircon_init.sh"
     end
 
     desc "version", "Show aircon version"
@@ -78,6 +85,30 @@ module Aircon
 
       # Non-root user inside the container
       # container_user: vscode
+
+      # Script to run inside the container after setup (path relative to project root)
+      # Defaults to .aircon/aircon_init.sh — edit that file to add your setup steps.
+      # init_script: .aircon/aircon_init.sh
     YAML
+
+    INIT_SCRIPT_TEMPLATE = <<~'BASH'
+      #!/bin/bash
+      # .aircon/aircon_init.sh
+      #
+      # This script runs inside the container after aircon completes its setup.
+      # It is invoked as a login shell (bash -l), so environment variables
+      # configured by aircon are available:
+      #
+      #   GH_TOKEN / GITHUB_PERSONAL_ACCESS_TOKEN  — GitHub personal access token
+      #   CLAUDE_CODE_OAUTH_TOKEN                  — Claude Code OAuth token
+      #   PATH                                     — includes ~/.local/bin (claude, gh, etc.)
+      #
+      # The working directory is the repository root inside the container.
+      #
+      # Examples:
+      #   npm install
+      #   bundle install
+      #   cp .env.example .env
+    BASH
   end
 end

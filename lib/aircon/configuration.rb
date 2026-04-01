@@ -5,7 +5,7 @@ require "erb"
 
 module Aircon
   class Configuration
-    CONFIG_FILE = ".aircon.yml"
+    CONFIG_FILE = ".aircon/aircon.yml"
 
     DEFAULTS = {
       "compose_file" => "docker-compose.yml",
@@ -17,12 +17,13 @@ module Aircon
       "service" => "app",
       "git_email" => "claude_docker@localhost.com",
       "git_name" => "Claude Docker",
-      "container_user" => "vscode"
+      "container_user" => "vscode",
+      "init_script" => ".aircon/aircon_init.sh"
     }.freeze
 
     attr_reader :compose_file, :gh_token, :claude_code_oauth_token, :workspace_path,
                 :claude_config_path, :claude_dir_path, :service, :git_email, :git_name,
-                :container_user
+                :container_user, :init_script
 
     def initialize(dir: Dir.pwd)
       attrs = DEFAULTS.dup
@@ -45,6 +46,7 @@ module Aircon
       @git_email = attrs["git_email"]
       @git_name = attrs["git_name"]
       @container_user = attrs["container_user"]
+      @init_script = attrs["init_script"]
     end
 
     def container_home

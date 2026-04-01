@@ -20,7 +20,8 @@ RSpec.describe Aircon::CLI do
       container_user: "vscode",
       claude_config_path: "~/.claude.json",
       claude_dir_path: "~/.claude",
-      workspace_path: "/workspace")
+      workspace_path: "/workspace",
+      init_script: nil)
   end
 
   before { allow(Aircon::Configuration).to receive(:new).and_return(config) }
@@ -176,6 +177,37 @@ RSpec.describe Aircon::CLI do
       end
     end
 
+    describe "init_script" do
+      context "when init_script is configured and the file exists" do
+        before do
+          allow(config).to receive(:init_script).and_return("scripts/setup.sh")
+          FileUtils.mkdir_p("scripts")
+          File.write("scripts/setup.sh", "#!/bin/bash\necho hello")
+        end
+
+        it "copies and runs the script in the container after setup" do
+          described_class.start(["up", "myproject"])
+          expect(@up).to have_received(:system).with(
+            "docker", "cp", File.expand_path("scripts/setup.sh"), "#{container_id}:/home/vscode/.aircon_init.sh"
+          )
+          expect(@up).to have_received(:system).with(
+            "docker", "exec", container_id, "bash", "-l", "/home/vscode/.aircon_init.sh"
+          )
+        end
+      end
+
+      context "when init_script is configured but the file does not exist" do
+        before { allow(config).to receive(:init_script).and_return("missing.sh") }
+
+        it "skips execution and warns" do
+          expect { described_class.start(["up", "myproject"]) }.to output(/init_script.*missing\.sh.*not found/i).to_stderr
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", container_id, "bash", "-l", "/home/vscode/.aircon_init.sh"
+          )
+        end
+      end
+    end
+
     describe "aircon up <project_name> --branch <feature_branch>" do
       context "when the branch does not exist on remote" do
         it "creates a new branch from origin/main" do
@@ -285,29 +317,51 @@ RSpec.describe Aircon::CLI do
     # FakeFS::SpecHelpers (active for all examples) isolates all file I/O,
     # so no Dir.mktmpdir / Dir.chdir needed here.
 
-    it "creates .aircon.yml in the current directory" do
+    it "creates .aircon/aircon.yml in the current directory" do
       described_class.start(["init"])
-      expect(File).to exist(File.join(Dir.pwd, ".aircon.yml"))
+      expect(File).to exist(File.join(Dir.pwd, ".aircon", "aircon.yml"))
     end
 
     it "writes the sample config template" do
       described_class.start(["init"])
-      content = File.read(File.join(Dir.pwd, ".aircon.yml"))
+      content = File.read(File.join(Dir.pwd, ".aircon", "aircon.yml"))
       expect(content).to include("compose_file")
       expect(content).to include("gh_token")
       expect(content).to include("claude_code_oauth_token")
       expect(content).to include("container_user")
+      expect(content).to include("init_script")
     end
 
-    it "aborts if .aircon.yml already exists" do
-      File.write(File.join(Dir.pwd, ".aircon.yml"), "existing")
+    it "creates .aircon/aircon_init.sh" do
+      described_class.start(["init"])
+      expect(File).to exist(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))
+    end
+
+    it "writes helpful comments to aircon_init.sh" do
+      described_class.start(["init"])
+      content = File.read(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))
+      expect(content).to include("GH_TOKEN")
+      expect(content).to include("CLAUDE_CODE_OAUTH_TOKEN")
+    end
+
+    it "does not overwrite an existing aircon_init.sh" do
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+      File.write(File.join(Dir.pwd, ".aircon", "aircon_init.sh"), "existing")
+      described_class.start(["init"])
+      expect(File.read(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))).to eq("existing")
+    end
+
+    it "aborts if .aircon/aircon.yml already exists" do
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+      File.write(File.join(Dir.pwd, ".aircon", "aircon.yml"), "existing")
       expect { described_class.start(["init"]) }.to raise_error(SystemExit)
     end
 
-    it "does not overwrite an existing .aircon.yml" do
-      File.write(File.join(Dir.pwd, ".aircon.yml"), "existing")
+    it "does not overwrite an existing .aircon/aircon.yml" do
+      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
+      File.write(File.join(Dir.pwd, ".aircon", "aircon.yml"), "existing")
       expect { described_class.start(["init"]) }.to raise_error(SystemExit)
-      expect(File.read(File.join(Dir.pwd, ".aircon.yml"))).to eq("existing")
+      expect(File.read(File.join(Dir.pwd, ".aircon", "aircon.yml"))).to eq("existing")
     end
   end
 end

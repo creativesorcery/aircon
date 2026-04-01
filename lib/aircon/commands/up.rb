@@ -51,6 +51,7 @@ module Aircon
 
         inject_claude_settings(container)
         setup_container(container, branch)
+        run_init_script(container)
 
         if detach
           puts "Container started: #{container}"
@@ -148,6 +149,21 @@ module Aircon
 
         # If you have the official anthropic marketplace plugin installed, it will always make a call to the anthropic github repo on claude startup. It uses SSH, but it should be https for universal compatibility since its a public repository.
         system("docker", "exec", container, "git", "config", "--global", "url.\"https://github.com/anthropics/\".insteadOf", "ssh://git@github.com/anthropics/")
+      end
+
+      def run_init_script(container)
+        return unless @config.init_script && !@config.init_script.to_s.empty?
+
+        script_path = File.expand_path(@config.init_script)
+        unless File.exist?(script_path)
+          warn "Warning: init_script '#{@config.init_script}' not found, skipping."
+          return
+        end
+
+        home = @config.container_home
+        remote_script = "#{home}/.aircon_init.sh"
+        system("docker", "cp", script_path, "#{container}:#{remote_script}")
+        system("docker", "exec", container, "bash", "-l", remote_script)
       end
 
       def cleanup_if_last(container, name)

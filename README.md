@@ -51,7 +51,7 @@ aircon version
 
 ## Configuration
 
-Create an `.aircon.yml` in your project root (use `aircon init` to generate a template). All values are optional — sensible defaults are provided.
+Create an `.aircon/aircon.yml` in your project root (use `aircon init` to generate a template). All values are optional — sensible defaults are provided.
 
 ERB is supported, so you can use dynamic values like environment variables.
 
@@ -83,6 +83,9 @@ git_name: Claude Docker
 
 # Non-root user inside the container
 container_user: vscode
+
+# Script to run inside the container after setup (path relative to this file)
+init_script: .aircon/aircon_init.sh
 ```
 
 ### Configuration Reference
@@ -99,6 +102,7 @@ container_user: vscode
 | `git_email` | `claude_docker@localhost.com` | Git author email inside the container |
 | `git_name` | `Claude Docker` | Git author name inside the container |
 | `container_user` | `vscode` | Non-root user inside the container (determines home directory) |
+| `init_script` | `.aircon/aircon_init.sh` | Script to run inside the container after setup |
 
 ## Commands
 
@@ -151,7 +155,7 @@ aircon vscode my-project
 
 ### `aircon init`
 
-Create a sample `.aircon.yml` in the current directory. Aborts if one already exists.
+Create a sample `.aircon/aircon.yml` and `.aircon/aircon_init.sh` in the current directory. Aborts if `.aircon/aircon.yml` already exists. Does not overwrite an existing `aircon_init.sh`.
 
 ```bash
 aircon init
@@ -172,8 +176,9 @@ aircon version
 3. If `claude_code_oauth_token` is configured, it is set as the `CLAUDE_CODE_OAUTH_TOKEN` environment variable inside the container.
 4. Claude Code is automatically installed inside the container if not already present.
 5. Git is configured with the `git_email`/`git_name` settings, and a branch is checked out (defaults to `NAME`, or the value of `--branch` if provided).
-6. When the last `bash` session exits, the container is torn down and images are pruned.
-7. **`aircon vscode NAME`** hex-encodes the container ID and opens VS Code attached to it.
+6. If `init_script` is set and the file exists, it is copied into the container and run via `bash -l`. This is the place to install dependencies, copy config files, or do any other per-project setup. The script has access to all environment variables configured by aircon (`GH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, etc.).
+7. When the last `bash` session exits, the container is torn down and images are pruned.
+8. **`aircon vscode NAME`** hex-encodes the container ID and opens VS Code attached to it.
 
 ## Notes
 
