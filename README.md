@@ -233,12 +233,7 @@ init_script: .aircon/aircon_init.sh
 ## Releasing to RubyGems
 
 1. Bump the version in `lib/aircon/version.rb`.
-2. Build and push:
-
-```bash
-gem build aircon.gemspec
-gem push aircon-<version>.gem
-```
+2. run `bundle exec rake release`.
 
 You'll be prompted for your RubyGems credentials on first push. Subsequent pushes use the stored API key at `~/.gem/credentials`.
 
