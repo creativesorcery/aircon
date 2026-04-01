@@ -12,6 +12,7 @@ RSpec.describe Aircon::CLI do
     instance_double(Aircon::Configuration,
       service: "app",
       compose_file: "docker-compose.yml",
+      app_name: "myapp",
       gh_token: "ghp_testtoken",
       claude_code_oauth_token: "test_oauth",
       git_email: "test@example.com",
@@ -59,8 +60,9 @@ RSpec.describe Aircon::CLI do
       it "runs docker compose up with the project name and default port" do
         described_class.start(["up", "myproject"])
         expect(@up).to have_received(:system).with(
-          { "HOST_PORT" => "3001" }, "docker", "compose",
-          "-f", "docker-compose.yml", "-p", "myproject", "up", "-d", "--build"
+          { "HOST_PORT" => "3001", "AIRCON_APP_NAME" => "myapp",
+            "AIRCON_CONTAINER_USER" => "vscode", "AIRCON_WORKSPACE_PATH" => "/workspace" },
+          "docker", "compose", "-f", "docker-compose.yml", "-p", "myproject", "up", "-d", "--build"
         )
       end
 
@@ -146,7 +148,7 @@ RSpec.describe Aircon::CLI do
       it "passes the port to docker compose" do
         described_class.start(["up", "myproject", "8080"])
         expect(@up).to have_received(:system).with(
-          { "HOST_PORT" => "8080" }, "docker", "compose", any_args
+          hash_including("HOST_PORT" => "8080"), "docker", "compose", any_args
         )
       end
     end
@@ -169,8 +171,9 @@ RSpec.describe Aircon::CLI do
         it "starts the container without attaching" do
           described_class.start(["up", "myproject", "--detach"])
           expect(@up).to have_received(:system).with(
-            { "HOST_PORT" => "3001" }, "docker", "compose",
-            "-f", "docker-compose.yml", "-p", "myproject", "up", "-d", "--build"
+            { "HOST_PORT" => "3001", "AIRCON_APP_NAME" => "myapp",
+              "AIRCON_CONTAINER_USER" => "vscode", "AIRCON_WORKSPACE_PATH" => "/workspace" },
+            "docker", "compose", "-f", "docker-compose.yml", "-p", "myproject", "up", "-d", "--build"
           )
           expect(@up).not_to have_received(:system).with("docker", "exec", "-it", container_id, "bash")
         end
@@ -351,16 +354,10 @@ RSpec.describe Aircon::CLI do
       expect(File.read(File.join(Dir.pwd, ".aircon", "aircon_init.sh"))).to eq("existing")
     end
 
-    it "aborts if .aircon/aircon.yml already exists" do
-      FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
-      File.write(File.join(Dir.pwd, ".aircon", "aircon.yml"), "existing")
-      expect { described_class.start(["init"]) }.to raise_error(SystemExit)
-    end
-
     it "does not overwrite an existing .aircon/aircon.yml" do
       FileUtils.mkdir_p(File.join(Dir.pwd, ".aircon"))
       File.write(File.join(Dir.pwd, ".aircon", "aircon.yml"), "existing")
-      expect { described_class.start(["init"]) }.to raise_error(SystemExit)
+      described_class.start(["init"])
       expect(File.read(File.join(Dir.pwd, ".aircon", "aircon.yml"))).to eq("existing")
     end
   end
