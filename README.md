@@ -6,7 +6,7 @@ Aircon spins up a Docker Compose environment for each project, injects your Clau
 
 ## Prerequisites
 
-- Ruby >= 4.0.0
+- Ruby >= 3.3.0
 - Docker and Docker Compose
 - A `docker-compose.yml` (or custom Compose file) in your project
 - Claude Code installed on the host (for credentials)
@@ -177,8 +177,6 @@ aircon version
 
 ## Notes
 
-- Add `.aircon.yml` to your `.gitignore` if it contains secrets
-- Add `.aircon/` to both `.gitignore` and `.dockerignore` (used as a temporary staging directory)
 - SSH keys are not managed by aircon — they are project-specific
 - Your Dockerfile does **not** need COPY lines for Claude settings; aircon injects them at runtime
 
