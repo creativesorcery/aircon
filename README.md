@@ -97,7 +97,7 @@ aircon up my-feature -d            # start detached (no interactive shell)
 5. Installs Claude Code inside the container if not already present (`curl -fsSL https://claude.ai/install.sh | bash`).
 6. Adds `~/.local/bin` to `PATH` in `/etc/bash.bashrc` so `claude` is available in all sessions.
 7. Writes `GH_TOKEN` and `GITHUB_PERSONAL_ACCESS_TOKEN` to `/etc/bash.bashrc` (if `gh_token` is set).
-8. Writes `CLAUDE_CODE_OAUTH_TOKEN` to `/etc/bash.bashrc` (if configured).
+8. Injects Claude Code credentials based on `credentials_source`: copies from macOS Keychain (`keychain`), from `~/.claude/.credentials.json` (`file`), or sets `CLAUDE_CODE_OAUTH_TOKEN` in `/etc/bash.bashrc` (`oauth_token`).
 9. Sets `git config user.email` and `git config user.name` globally inside the container.
 10. Configures `git` to authenticate GitHub URLs with your token (covers both `https://github.com/` and `git@github.com:`).
 11. Checks out the branch:
@@ -177,7 +177,11 @@ app_name: my-app
 # GitHub personal access token — authenticates git and gh inside the container
 gh_token: <%= ENV['GITHUB_TOKEN'] %>
 
-# Claude Code OAuth token — set as CLAUDE_CODE_OAUTH_TOKEN inside the container
+# How to obtain Claude Code credentials: "keychain" (macOS), "file", or "oauth_token"
+credentials_source: keychain
+
+# Claude Code OAuth token — used when credentials_source is "oauth_token"
+# Falls back to CLAUDE_CODE_OAUTH_TOKEN env var if not set here.
 claude_code_oauth_token: <%= ENV['CLAUDE_CODE_OAUTH_TOKEN'] %>
 
 # Workspace folder path inside the container
@@ -210,7 +214,8 @@ init_script: .aircon/aircon_init.sh
 | `compose_file` | `.aircon/docker-compose.yml` | Docker Compose file to use |
 | `app_name` | basename of cwd | App name passed to Compose as `AIRCON_APP_NAME` |
 | `gh_token` | `nil` | GitHub token; sets `GH_TOKEN` and `GITHUB_PERSONAL_ACCESS_TOKEN` in the container |
-| `claude_code_oauth_token` | `nil` | Claude Code OAuth token; sets `CLAUDE_CODE_OAUTH_TOKEN` in the container |
+| `credentials_source` | `keychain` | `keychain` (macOS), `file` (~/.claude/.credentials.json), or `oauth_token` |
+| `claude_code_oauth_token` | `nil` | OAuth token for `oauth_token` mode; falls back to `CLAUDE_CODE_OAUTH_TOKEN` env var |
 | `workspace_path` | `/workspace` | Workspace folder path inside the container |
 | `claude_config_path` | `~/.claude.json` | Host path to `claude.json` |
 | `claude_dir_path` | `~/.claude` | Host path to `.claude/` directory |

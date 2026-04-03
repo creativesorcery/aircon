@@ -14,6 +14,7 @@ RSpec.describe Aircon::CLI do
       compose_file: "docker-compose.yml",
       app_name: "myapp",
       gh_token: "ghp_testtoken",
+      credentials_source: "oauth_token",
       claude_code_oauth_token: "test_oauth",
       git_email: "test@example.com",
       git_name: "Test User",
@@ -82,12 +83,45 @@ RSpec.describe Aircon::CLI do
         )
       end
 
-      it "injects CLAUDE_CODE_OAUTH_TOKEN into /etc/bash.bashrc" do
+      it "injects CLAUDE_CODE_OAUTH_TOKEN into /etc/bash.bashrc when credentials_source is oauth_token" do
         described_class.start(["up", "myproject"])
         expect(@up).to have_received(:system).with(
           "docker", "exec", "-u", "root", container_id, "bash", "-c",
           a_string_including("export CLAUDE_CODE_OAUTH_TOKEN=\"test_oauth\"")
         )
+      end
+
+      context "when credentials_source is keychain" do
+        before do
+          allow(config).to receive(:credentials_source).and_return("keychain")
+          allow(Open3).to receive(:capture2)
+            .with("security", "find-generic-password", "-a", anything, "-w", "-s", "Claude Code-credentials")
+            .and_return(["{\"token\":\"keychain_cred\"}", ok])
+        end
+
+        it "does not inject CLAUDE_CODE_OAUTH_TOKEN" do
+          described_class.start(["up", "myproject"])
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", "-u", "root", container_id, "bash", "-c",
+            a_string_including("export CLAUDE_CODE_OAUTH_TOKEN=")
+          )
+        end
+      end
+
+      context "when credentials_source is file" do
+        before do
+          allow(config).to receive(:credentials_source).and_return("file")
+          FileUtils.mkdir_p(File.expand_path("~/.claude"))
+          File.write(File.expand_path("~/.claude/.credentials.json"), '{"token":"file_cred"}')
+        end
+
+        it "does not inject CLAUDE_CODE_OAUTH_TOKEN" do
+          described_class.start(["up", "myproject"])
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", "-u", "root", container_id, "bash", "-c",
+            a_string_including("export CLAUDE_CODE_OAUTH_TOKEN=")
+          )
+        end
       end
 
       it "configures git identity in the container" do
@@ -330,6 +364,7 @@ RSpec.describe Aircon::CLI do
       content = File.read(File.join(Dir.pwd, ".aircon", "aircon.yml"))
       expect(content).to include("compose_file")
       expect(content).to include("gh_token")
+      expect(content).to include("credentials_source")
       expect(content).to include("claude_code_oauth_token")
       expect(content).to include("container_user")
       expect(content).to include("init_script")
