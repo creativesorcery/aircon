@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1] - 2026-04-04
+
+### Fixed
+
+- New branches no longer track `origin/main`. Branches created when no matching
+  remote branch exists are still based on `main` but use `--no-track` so that
+  pulls and pushes default to the correct upstream once it's created.
+- Skip branch checkout entirely when the container is already on the target branch.
+- Fix branch checkout specs (missing `rev-parse` stub, incorrect `-f` flags).
+
 ## [0.2.0] - 2026-04-03
 
 ### Added
