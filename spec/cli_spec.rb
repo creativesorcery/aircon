@@ -51,6 +51,11 @@ RSpec.describe Aircon::CLI do
         .with("docker", "exec", container_id, "git", "ls-remote", "--heads", "origin", anything)
         .and_return(["", ok])
 
+      # Default branch inside container is "main" (triggers checkout when --branch is used)
+      allow(Open3).to receive(:capture2)
+        .with("docker", "exec", container_id, "git", "rev-parse", "--abbrev-ref", "HEAD")
+        .and_return(["main\n", ok])
+
       # Bash session still active after attach — no cleanup triggered
       allow(Open3).to receive(:capture2)
         .with("docker", "exec", container_id, "pgrep", "-x", "bash")
@@ -253,7 +258,7 @@ RSpec.describe Aircon::CLI do
             "docker", "exec", container_id, "git", "fetch", "origin", "main"
           )
           expect(@up).to have_received(:system).with(
-            "docker", "exec", container_id, "git", "checkout", "-b", "new-feature", "origin/main"
+            "docker", "exec", container_id, "git", "checkout", "-f", "--no-track", "-b", "new-feature", "origin/main"
           )
         end
 
@@ -263,7 +268,25 @@ RSpec.describe Aircon::CLI do
             "docker", "exec", container_id, "git", "fetch", "origin", "main"
           )
           expect(@up).to have_received(:system).with(
-            "docker", "exec", container_id, "git", "checkout", "-b", "new-feature", "origin/main"
+            "docker", "exec", container_id, "git", "checkout", "-f", "--no-track", "-b", "new-feature", "origin/main"
+          )
+        end
+      end
+
+      context "when already on the target branch" do
+        before do
+          allow(Open3).to receive(:capture2)
+            .with("docker", "exec", container_id, "git", "rev-parse", "--abbrev-ref", "HEAD")
+            .and_return(["new-feature\n", ok])
+        end
+
+        it "skips checkout" do
+          described_class.start(["up", "myproject", "--branch", "new-feature"])
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", container_id, "git", "fetch", anything, anything
+          )
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", container_id, "git", "checkout", any_args
           )
         end
       end
@@ -281,7 +304,7 @@ RSpec.describe Aircon::CLI do
             "docker", "exec", container_id, "git", "fetch", "origin", "existing-branch"
           )
           expect(@up).to have_received(:system).with(
-            "docker", "exec", container_id, "git", "checkout", "-b", "existing-branch", "origin/existing-branch"
+            "docker", "exec", container_id, "git", "checkout", "-f", "-b", "existing-branch", "origin/existing-branch"
           )
         end
 
@@ -291,7 +314,7 @@ RSpec.describe Aircon::CLI do
             "docker", "exec", container_id, "git", "fetch", "origin", "existing-branch"
           )
           expect(@up).to have_received(:system).with(
-            "docker", "exec", container_id, "git", "checkout", "-b", "existing-branch", "origin/existing-branch"
+            "docker", "exec", container_id, "git", "checkout", "-f", "-b", "existing-branch", "origin/existing-branch"
           )
         end
       end
