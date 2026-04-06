@@ -173,16 +173,23 @@ module Aircon
         # Skip checkout if already on the target branch (host was on this branch)
         current_branch, = Open3.capture2("docker", "exec", container, "git", "rev-parse", "--abbrev-ref", "HEAD")
         if current_branch.strip != branch
-          # Check if branch exists on remote; if so, check it out, otherwise create new
-          _, status = Open3.capture2("docker", "exec", container, "git", "ls-remote", "--heads", "origin", branch)
-          if status.success? && !_.strip.empty?
-            system("docker", "exec", container, "git", "fetch", "origin", branch)
-            system("docker", "exec", container, "git", "checkout", "-f", "-b", branch, "origin/#{branch}")
+          # Check if branch exists locally; if so, just switch to it
+          _, local_status = Open3.capture2("docker", "exec", container, "git", "rev-parse", "--verify", branch)
+          if local_status.success?
+            system("docker", "exec", container, "git", "checkout", "-f", branch)
             system("docker", "exec", container, "git", "clean", "-fd")
           else
-            system("docker", "exec", container, "git", "fetch", "origin", "main")
-            system("docker", "exec", container, "git", "checkout", "-f", "--no-track", "-b", branch, "origin/main")
-            system("docker", "exec", container, "git", "clean", "-fd")
+            # Check if branch exists on remote; if so, check it out, otherwise create new
+            _, status = Open3.capture2("docker", "exec", container, "git", "ls-remote", "--heads", "origin", branch)
+            if status.success? && !_.strip.empty?
+              system("docker", "exec", container, "git", "fetch", "origin", branch)
+              system("docker", "exec", container, "git", "checkout", "-f", "-b", branch, "origin/#{branch}")
+              system("docker", "exec", container, "git", "clean", "-fd")
+            else
+              system("docker", "exec", container, "git", "fetch", "origin", "main")
+              system("docker", "exec", container, "git", "checkout", "-f", "--no-track", "-b", branch, "origin/main")
+              system("docker", "exec", container, "git", "clean", "-fd")
+            end
           end
         end
 
