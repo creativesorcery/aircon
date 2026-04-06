@@ -170,24 +170,32 @@ module Aircon
           system("docker", "exec", container, "git", "config", "--global",
                  "url.#{authed}.insteadOf", "git@github.com:")
         end
-        # Skip checkout if already on the target branch (host was on this branch)
-        current_branch, = Open3.capture2("docker", "exec", container, "git", "rev-parse", "--abbrev-ref", "HEAD")
-        if current_branch.strip != branch
-          # Check if branch exists on remote; if so, check it out, otherwise create new
-          _, status = Open3.capture2("docker", "exec", container, "git", "ls-remote", "--heads", "origin", branch)
-          if status.success? && !_.strip.empty?
-            system("docker", "exec", container, "git", "fetch", "origin", branch)
-            system("docker", "exec", container, "git", "checkout", "-f", "-b", branch, "origin/#{branch}")
-            system("docker", "exec", container, "git", "clean", "-fd")
-          else
-            system("docker", "exec", container, "git", "fetch", "origin", "main")
-            system("docker", "exec", container, "git", "checkout", "-f", "--no-track", "-b", branch, "origin/main")
-            system("docker", "exec", container, "git", "clean", "-fd")
-          end
-        end
+        checkout_branch(container, branch)
 
         # If you have the official anthropic marketplace plugin installed, it will always make a call to the anthropic github repo on claude startup. It uses SSH, but it should be https for universal compatibility since its a public repository.
         system("docker", "exec", container, "git", "config", "--global", "url.\"https://github.com/anthropics/\".insteadOf", "ssh://git@github.com/anthropics/")
+      end
+
+      def checkout_branch(container, branch)
+        current_branch, = Open3.capture2("docker", "exec", container, "git", "rev-parse", "--abbrev-ref", "HEAD")
+        return if current_branch.strip == branch
+
+        _, local_status = Open3.capture2("docker", "exec", container, "git", "rev-parse", "--verify", branch)
+        if local_status.success?
+          system("docker", "exec", container, "git", "checkout", "-f", branch)
+        elsif branch_exists_on_remote?(container, branch)
+          system("docker", "exec", container, "git", "fetch", "origin", branch)
+          system("docker", "exec", container, "git", "checkout", "-f", "-b", branch, "origin/#{branch}")
+        else
+          system("docker", "exec", container, "git", "fetch", "origin", "main")
+          system("docker", "exec", container, "git", "checkout", "-f", "--no-track", "-b", branch, "origin/main")
+        end
+        system("docker", "exec", container, "git", "clean", "-fd")
+      end
+
+      def branch_exists_on_remote?(container, branch)
+        output, status = Open3.capture2("docker", "exec", container, "git", "ls-remote", "--heads", "origin", branch)
+        status.success? && !output.strip.empty?
       end
 
       def run_init_script(container)

@@ -7,6 +7,7 @@ RSpec.describe Aircon::CLI do
 
   let(:container_id) { "abc123" }
   let(:ok) { instance_double(Process::Status, success?: true) }
+  let(:not_ok) { instance_double(Process::Status, success?: false) }
 
   let(:config) do
     instance_double(Aircon::Configuration,
@@ -45,6 +46,11 @@ RSpec.describe Aircon::CLI do
               "--filter", "label=com.docker.compose.project=myproject",
               "--filter", "label=com.docker.compose.service=app")
         .and_return(["\n", "", ok], ["#{container_id}\n", "", ok])
+
+      # Branch does not exist locally by default
+      allow(Open3).to receive(:capture2)
+        .with("docker", "exec", container_id, "git", "rev-parse", "--verify", anything)
+        .and_return(["", not_ok])
 
       # Branch not found on remote by default
       allow(Open3).to receive(:capture2)
@@ -287,6 +293,31 @@ RSpec.describe Aircon::CLI do
           )
           expect(@up).not_to have_received(:system).with(
             "docker", "exec", container_id, "git", "checkout", any_args
+          )
+        end
+      end
+
+      context "when the branch exists locally but is not the current branch" do
+        before do
+          allow(Open3).to receive(:capture2)
+            .with("docker", "exec", container_id, "git", "rev-parse", "--verify", "local-feature")
+            .and_return(["abc123\n", ok])
+        end
+
+        it "checks out the existing local branch without creating a new one" do
+          described_class.start(["up", "myproject", "--branch", "local-feature"])
+          expect(@up).to have_received(:system).with(
+            "docker", "exec", container_id, "git", "checkout", "-f", "local-feature"
+          )
+        end
+
+        it "does not fetch or create a new branch" do
+          described_class.start(["up", "myproject", "--branch", "local-feature"])
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", container_id, "git", "fetch", anything, anything
+          )
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", container_id, "git", "checkout", "-f", "-b", anything, anything
           )
         end
       end

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.2] - 2026-04-06
+
+### Fixed
+
+- Fix checkout of branches that exist locally but are not the current branch.
+  Previously `git checkout -b` would fail because the branch already existed.
+
+### Changed
+
+- Refactor branch checkout logic into `checkout_branch` and
+  `branch_exists_on_remote?` methods, flattening nested conditionals.
+
 ## [0.2.1] - 2026-04-04
 
 ### Fixed
