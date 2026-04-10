@@ -153,7 +153,7 @@ RSpec.describe Aircon::CLI do
           "url.#{authed}.insteadOf", "https://github.com/"
         )
         expect(@up).to have_received(:system).with(
-          "docker", "exec", container_id, "git", "config", "--global",
+          "docker", "exec", container_id, "git", "config", "--global", "--add",
           "url.#{authed}.insteadOf", "git@github.com:"
         )
       end

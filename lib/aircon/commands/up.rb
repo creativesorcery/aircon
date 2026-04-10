@@ -167,7 +167,7 @@ module Aircon
           authed = "https://x-access-token:#{@config.gh_token}@github.com/"
           system("docker", "exec", container, "git", "config", "--global",
                  "url.#{authed}.insteadOf", "https://github.com/")
-          system("docker", "exec", container, "git", "config", "--global",
+          system("docker", "exec", container, "git", "config", "--global", "--add",
                  "url.#{authed}.insteadOf", "git@github.com:")
         end
         checkout_branch(container, branch)
