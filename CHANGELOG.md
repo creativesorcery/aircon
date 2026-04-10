@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3] - 2026-04-10
+
+### Fixed
+
+- Fix git config for URL rewriting in containers: the second `insteadOf` rule
+  (`git@github.com:`) was overwriting the first (`https://github.com/`) because
+  both shared the same config key. Added `--add` so both rewrites are active.
+
 ## [0.2.2] - 2026-04-06
 
 ### Fixed
