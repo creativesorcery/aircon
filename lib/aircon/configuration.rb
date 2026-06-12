@@ -6,7 +6,7 @@ require "erb"
 module Aircon
   class Configuration
     CONFIG_FILE = ".aircon/aircon.yml"
-    VALID_CREDENTIALS_SOURCES = %w[keychain file oauth_token].freeze
+    VALID_CREDENTIALS_SOURCES = %w[keychain file oauth_token api_key].freeze
 
     DEFAULTS = {
       "compose_file" => ".aircon/docker-compose.yml",
@@ -14,6 +14,7 @@ module Aircon
       "gh_token" => nil,
       "credentials_source" => "keychain",
       "claude_code_oauth_token" => nil,
+      "anthropic_api_key" => nil,
       "workspace_path" => nil,
       "claude_config_path" => "~/.claude.json",
       "claude_dir_path" => "~/.claude",
@@ -25,8 +26,8 @@ module Aircon
     }.freeze
 
     attr_reader :compose_file, :app_name, :gh_token, :credentials_source, :claude_code_oauth_token,
-                :workspace_path, :claude_config_path, :claude_dir_path, :service, :git_email,
-                :git_name, :container_user, :init_script
+                :anthropic_api_key, :workspace_path, :claude_config_path, :claude_dir_path, :service,
+                :git_email, :git_name, :container_user, :init_script
 
     def initialize(dir: Dir.pwd)
       attrs = DEFAULTS.dup
@@ -44,6 +45,7 @@ module Aircon
       @gh_token = attrs["gh_token"]
       @credentials_source = attrs["credentials_source"]
       @claude_code_oauth_token = attrs["claude_code_oauth_token"]
+      @anthropic_api_key = attrs["anthropic_api_key"]
       @workspace_path = attrs["workspace_path"] || "/workspace"
       @claude_config_path = attrs["claude_config_path"]
       @claude_dir_path = attrs["claude_dir_path"]

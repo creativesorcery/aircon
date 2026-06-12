@@ -82,6 +82,11 @@ module Aircon
 
           write_credentials(File.join(staging, ".claude", ".credentials.json"))
 
+          # In api_key mode, strip any OAuth credentials so the container relies solely on ANTHROPIC_API_KEY.
+          if @config.credentials_source == "api_key"
+            FileUtils.rm_f(File.join(staging, ".claude", ".credentials.json"))
+          end
+
           home = @config.container_home
           rewrite_paths(staging, home)
           user = @config.container_user
@@ -156,6 +161,18 @@ module Aircon
             system("docker", "exec", "-u", "root", container, "bash", "-c",
                    "grep -qF 'export CLAUDE_CODE_OAUTH_TOKEN=' /etc/bash.bashrc 2>/dev/null || " \
                    "echo 'export CLAUDE_CODE_OAUTH_TOKEN=\"#{token}\"' >> /etc/bash.bashrc")
+          end
+        end
+
+        if @config.credentials_source == "api_key"
+          key = @config.anthropic_api_key || ENV["ANTHROPIC_API_KEY"]
+          if key && !key.to_s.empty?
+            system("docker", "exec", "-u", "root", container, "bash", "-c",
+                   "grep -qF 'export ANTHROPIC_API_KEY=' /etc/bash.bashrc 2>/dev/null || " \
+                   "echo 'export ANTHROPIC_API_KEY=\"#{key}\"' >> /etc/bash.bashrc")
+          else
+            warn "Warning: credentials_source is 'api_key' but no ANTHROPIC_API_KEY found " \
+                 "(set anthropic_api_key in .aircon/aircon.yml or the ANTHROPIC_API_KEY env var)."
           end
         end
 
