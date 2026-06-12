@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2026-06-12
+
+### Added
+
+- New `api_key` credentials source: set `credentials_source: api_key` to run
+  Claude Code in the container with an Anthropic API key instead of subscription
+  OAuth. The key is read from `anthropic_api_key` in `.aircon/aircon.yml`
+  (falling back to the `ANTHROPIC_API_KEY` env var) and exported as
+  `ANTHROPIC_API_KEY` inside the container. In this mode any host OAuth
+  credentials are stripped from the staged `.claude` directory so the container
+  authenticates solely via the API key.
+
 ## [0.2.3] - 2026-04-10
 
 ### Fixed

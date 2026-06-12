@@ -17,6 +17,7 @@ RSpec.describe Aircon::CLI do
       gh_token: "ghp_testtoken",
       credentials_source: "oauth_token",
       claude_code_oauth_token: "test_oauth",
+      anthropic_api_key: nil,
       git_email: "test@example.com",
       git_name: "Test User",
       container_home: "/home/vscode",
@@ -100,6 +101,54 @@ RSpec.describe Aircon::CLI do
           "docker", "exec", "-u", "root", container_id, "bash", "-c",
           a_string_including("export CLAUDE_CODE_OAUTH_TOKEN=\"test_oauth\"")
         )
+      end
+
+      it "does not inject ANTHROPIC_API_KEY when credentials_source is oauth_token" do
+        described_class.start(["up", "myproject"])
+        expect(@up).not_to have_received(:system).with(
+          "docker", "exec", "-u", "root", container_id, "bash", "-c",
+          a_string_including("export ANTHROPIC_API_KEY=")
+        )
+      end
+
+      context "when credentials_source is api_key" do
+        before do
+          allow(config).to receive(:credentials_source).and_return("api_key")
+          allow(config).to receive(:anthropic_api_key).and_return("sk-ant-test")
+          allow(FileUtils).to receive(:rm_f).and_call_original
+        end
+
+        it "injects ANTHROPIC_API_KEY into /etc/bash.bashrc" do
+          described_class.start(["up", "myproject"])
+          expect(@up).to have_received(:system).with(
+            "docker", "exec", "-u", "root", container_id, "bash", "-c",
+            a_string_including("export ANTHROPIC_API_KEY=\"sk-ant-test\"")
+          )
+        end
+
+        it "does not inject CLAUDE_CODE_OAUTH_TOKEN" do
+          described_class.start(["up", "myproject"])
+          expect(@up).not_to have_received(:system).with(
+            "docker", "exec", "-u", "root", container_id, "bash", "-c",
+            a_string_including("export CLAUDE_CODE_OAUTH_TOKEN=")
+          )
+        end
+
+        it "strips any staged OAuth credentials file" do
+          described_class.start(["up", "myproject"])
+          expect(FileUtils).to have_received(:rm_f).with(a_string_ending_with(".claude/.credentials.json"))
+        end
+
+        it "falls back to the ANTHROPIC_API_KEY env var when not configured" do
+          allow(config).to receive(:anthropic_api_key).and_return(nil)
+          allow(ENV).to receive(:[]).and_call_original
+          allow(ENV).to receive(:[]).with("ANTHROPIC_API_KEY").and_return("sk-ant-env")
+          described_class.start(["up", "myproject"])
+          expect(@up).to have_received(:system).with(
+            "docker", "exec", "-u", "root", container_id, "bash", "-c",
+            a_string_including("export ANTHROPIC_API_KEY=\"sk-ant-env\"")
+          )
+        end
       end
 
       context "when credentials_source is keychain" do

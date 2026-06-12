@@ -70,12 +70,16 @@ module Aircon
       # GitHub personal access token (supports ERB)
       # gh_token: <%= ENV['GITHUB_TOKEN'] %>
 
-      # How to obtain Claude Code credentials: "keychain" (macOS), "file", or "oauth_token"
+      # How to obtain Claude Code credentials: "keychain" (macOS), "file", "oauth_token", or "api_key"
       # credentials_source: keychain
 
       # Claude Code OAuth token — used when credentials_source is "oauth_token" (supports ERB)
       # Falls back to CLAUDE_CODE_OAUTH_TOKEN env var if not set here.
       # claude_code_oauth_token: <%= ENV['CLAUDE_CODE_OAUTH_TOKEN'] %>
+
+      # Anthropic API key — used when credentials_source is "api_key" (supports ERB)
+      # Falls back to ANTHROPIC_API_KEY env var if not set here.
+      # anthropic_api_key: <%= ENV['ANTHROPIC_API_KEY'] %>
 
       # Workspace folder path inside the container
       # workspace_path: /myproject

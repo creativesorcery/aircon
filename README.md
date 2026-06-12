@@ -177,12 +177,16 @@ app_name: my-app
 # GitHub personal access token — authenticates git and gh inside the container
 gh_token: <%= ENV['GITHUB_TOKEN'] %>
 
-# How to obtain Claude Code credentials: "keychain" (macOS), "file", or "oauth_token"
+# How to obtain Claude Code credentials: "keychain" (macOS), "file", "oauth_token", or "api_key"
 credentials_source: keychain
 
 # Claude Code OAuth token — used when credentials_source is "oauth_token"
 # Falls back to CLAUDE_CODE_OAUTH_TOKEN env var if not set here.
 claude_code_oauth_token: <%= ENV['CLAUDE_CODE_OAUTH_TOKEN'] %>
+
+# Anthropic API key — used when credentials_source is "api_key"
+# Falls back to ANTHROPIC_API_KEY env var if not set here.
+anthropic_api_key: <%= ENV['ANTHROPIC_API_KEY'] %>
 
 # Workspace folder path inside the container
 workspace_path: /my-app
@@ -214,8 +218,9 @@ init_script: .aircon/aircon_init.sh
 | `compose_file` | `.aircon/docker-compose.yml` | Docker Compose file to use |
 | `app_name` | basename of cwd | App name passed to Compose as `AIRCON_APP_NAME` |
 | `gh_token` | `nil` | GitHub token; sets `GH_TOKEN` and `GITHUB_PERSONAL_ACCESS_TOKEN` in the container |
-| `credentials_source` | `keychain` | `keychain` (macOS), `file` (~/.claude/.credentials.json), or `oauth_token` |
+| `credentials_source` | `keychain` | `keychain` (macOS), `file` (~/.claude/.credentials.json), `oauth_token`, or `api_key` |
 | `claude_code_oauth_token` | `nil` | OAuth token for `oauth_token` mode; falls back to `CLAUDE_CODE_OAUTH_TOKEN` env var |
+| `anthropic_api_key` | `nil` | Anthropic API key for `api_key` mode; sets `ANTHROPIC_API_KEY` in the container, falls back to `ANTHROPIC_API_KEY` env var |
 | `workspace_path` | `/workspace` | Workspace folder path inside the container |
 | `claude_config_path` | `~/.claude.json` | Host path to `claude.json` |
 | `claude_dir_path` | `~/.claude` | Host path to `.claude/` directory |
